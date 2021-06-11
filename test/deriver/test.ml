@@ -295,6 +295,58 @@ let test_dependencies () =
 
   check_eq ~expected ~actual "deriving dependencies"
 
+let test_konstr () =
+  let expected =
+    [
+      [%stri
+        let arb = QCheck.oneof [ QCheck.map (fun arb_0 -> A arb_0) QCheck.int ]];
+      [%stri
+        let arb =
+          QCheck.oneof
+            [
+              QCheck.map (fun arb_0 -> B arb_0) QCheck.int;
+              QCheck.map (fun arb_0 -> C arb_0) QCheck.int;
+            ]];
+      [%stri
+        let arb =
+          QCheck.oneof
+            [
+              QCheck.map (fun arb_0 -> X arb_0) arb_t1;
+              QCheck.map (fun arb_0 -> Y arb_0) arb_t2;
+              QCheck.map (fun arb_0 -> Z arb_0) QCheck.string;
+            ]];
+      [%stri let arb = QCheck.oneof [ QCheck.always Left; QCheck.always Right ]];
+      [%stri
+        let arb =
+          QCheck.oneof
+            [
+              QCheck.map (fun arb_0 -> Simple arb_0) QCheck.int;
+              QCheck.map
+                (fun (arb_0, arb_1) -> Double (arb_0, arb_1))
+                (QCheck.pair QCheck.int QCheck.int);
+              QCheck.map
+                (fun (arb_0, (arb_1, arb_2)) -> Triple (arb_0, arb_1, arb_2))
+                (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int));
+            ]];
+    ]
+  in
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type t = A of int];
+           [%stri type t = B of int | C of int];
+           [%stri type t = X of t1 | Y of t2 | Z of string];
+           [%stri type t = Left | Right];
+           [%stri
+             type t =
+               | Simple of int
+               | Double of int * int
+               | Triple of int * int * int];
+         ]
+  in
+  check_eq ~expected ~actual "deriving constructors"
+
 let () =
   Alcotest.(
     run
@@ -319,5 +371,6 @@ let () =
             test_case "deriving alpha" `Quick test_alpha;
             test_case "deriving equal" `Quick test_equal;
             test_case "deriving dependencies" `Quick test_dependencies;
+            test_case "deriving constructors" `Quick test_konstr;
           ] );
       ])
