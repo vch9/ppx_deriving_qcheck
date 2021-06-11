@@ -347,6 +347,41 @@ let test_konstr () =
   in
   check_eq ~expected ~actual "deriving constructors"
 
+let test_record () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.map
+            (fun (arb_0, arb_1) -> { a = arb_0; b = arb_1 })
+            (QCheck.pair QCheck.int QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.map
+            (fun (arb_0, arb_1) -> { a = arb_0; b = arb_1 })
+            (QCheck.pair QCheck.int QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.oneof
+            [
+              QCheck.map (fun arb_0 -> A arb_0) arb_t';
+              QCheck.map
+                (fun (arb_0, arb_1) -> B { left = arb_0; right = arb_1 })
+                (QCheck.pair QCheck.int QCheck.int);
+            ]];
+    ]
+  in
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type t = { a : int; b : string }];
+           [%stri type t = { mutable a : int; mutable b : string }];
+           [%stri type t = A of t' | B of { left : int; right : int } [@@arb]];
+         ]
+  in
+  check_eq ~expected ~actual "deriving record"
+
 let () =
   Alcotest.(
     run
@@ -372,5 +407,6 @@ let () =
             test_case "deriving equal" `Quick test_equal;
             test_case "deriving dependencies" `Quick test_dependencies;
             test_case "deriving constructors" `Quick test_konstr;
+            test_case "deriving record" `Quick test_record;
           ] );
       ])
