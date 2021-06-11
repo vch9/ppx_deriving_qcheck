@@ -282,15 +282,19 @@ let test_dependencies () =
                 (fun arb_0 -> Float arb_0)
                 SomeModule.SomeOtherModule.arb;
             ]];
+      [%stri let arb = gen_something];
     ]
   in
   let actual =
-    f
-    @@ extract
-         [%stri
-           type t =
-             | Int of SomeModule.t
-             | Float of SomeModule.SomeOtherModule.t]
+    f'
+    @@ extract'
+         [
+           [%stri
+             type t =
+               | Int of SomeModule.t
+               | Float of SomeModule.SomeOtherModule.t];
+           [%stri type t = (Something.t[@arb gen_something])];
+         ]
   in
 
   check_eq ~expected ~actual "deriving dependencies"
