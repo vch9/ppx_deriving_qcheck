@@ -91,18 +91,22 @@ and is_recursive_row_fields ~loc ~ty rws =
   List.exists (is_recursive_row_field ~loc ~ty) rws
 
 let rec from_core_type ~loc ?tree_types ?rec_types ~ty ct =
-  match ct.ptyp_desc with
-  | Ptyp_constr ({ txt = ty; _ }, []) ->
-      T.from_longident ~loc ?tree_types ?rec_types ty
-  | Ptyp_constr ({ txt = x; _ }, args) ->
-      let f = T.from_longident ~loc x in
-      let args = List.map (from_core_type ~loc ?rec_types ~ty) args in
-      T.constr_type ~loc ~f ~args ()
-  | Ptyp_tuple xs -> from_tuple ~loc ~ty xs
-  | Ptyp_var s -> T.Primitive.from_string ~loc s
-  | Ptyp_variant (x, y, z) ->
-      from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (x, y, z)
-  | _ -> Error.case_unsupported ~loc ~case:"Ppx.Gen.Types.from_core_type" ()
+  match Attributes.arb ~loc ct with
+  | Some x -> x
+  | None -> (
+      match ct.ptyp_desc with
+      | Ptyp_constr ({ txt = ty; _ }, []) ->
+          T.from_longident ~loc ?tree_types ?rec_types ty
+      | Ptyp_constr ({ txt = x; _ }, args) ->
+          let f = T.from_longident ~loc x in
+          let args = List.map (from_core_type ~loc ?rec_types ~ty) args in
+          T.constr_type ~loc ~f ~args ()
+      | Ptyp_tuple xs -> from_tuple ~loc ~ty xs
+      | Ptyp_var s -> T.Primitive.from_string ~loc s
+      | Ptyp_variant (x, y, z) ->
+          from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (x, y, z)
+      | _ -> Error.case_unsupported ~loc ~case:"Ppx.Gen.Types.from_core_type" ()
+      )
 
 (* [from_ptyp_variant] is not the same as [from_variant] *)
 and from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (rws, _, _) =
@@ -205,8 +209,11 @@ let from_type_declaration ~loc ?rec_types td =
        over type_manifest *)
     | (_, Some x) -> x
     | (Some ct, None) -> from_core_type ~loc ?rec_types ~ty ct
-    | _ -> assert false
-    (* Can that case happens ? *)
+    | (None, None) ->
+        (* Getting here is because of 2 events:
+           - type_kind raised an exception,
+           - ptyp_manifest is absent *)
+        assert false
   in
 
   let args = extract_args ~loc td.ptype_params in
