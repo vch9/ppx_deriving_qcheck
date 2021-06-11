@@ -496,7 +496,62 @@ let test_tree () =
                | Lt of expr * expr];
          ]
   in
-  check_eq ~expected ~actual "deriving variant"
+  check_eq ~expected ~actual "deriving tree"
+
+let test_recursive () =
+  let expected =
+    [
+      [%stri
+        include struct
+          let rec arb_expr () = arb_expr' 5
+
+          and arb_expr' = function
+            | 0 ->
+                QCheck.oneof
+                  [ QCheck.map (fun arb_0 -> Value arb_0) (arb_value ()) ]
+            | n ->
+                QCheck.oneof
+                  [
+                    QCheck.map (fun arb_0 -> Value arb_0) (arb_value ());
+                    QCheck.map
+                      (fun (arb_0, (arb_1, arb_2)) -> If (arb_0, arb_1, arb_2))
+                      (QCheck.pair
+                         (arb_expr' (n - 1))
+                         (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))));
+                    QCheck.map
+                      (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
+                      (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1)));
+                    QCheck.map
+                      (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
+                      (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1)));
+                  ]
+
+          and arb_value () =
+            QCheck.oneof
+              [
+                QCheck.map (fun arb_0 -> Bool arb_0) QCheck.bool;
+                QCheck.map (fun arb_0 -> Int arb_0) QCheck.int;
+              ]
+
+          let arb_expr = arb_expr ()
+
+          let arb_value = arb_value ()
+        end];
+    ]
+  in
+  let actual =
+    f
+    @@ extract
+         [%stri
+           type expr =
+             | Value of value
+             | If of expr * expr * expr
+             | Eq of expr * expr
+             | Lt of expr * expr
+
+           and value = Bool of bool | Int of int]
+  in
+  check_eq ~expected ~actual "deriving recursive"
 
 let () =
   Alcotest.(
@@ -526,5 +581,6 @@ let () =
             test_case "deriving record" `Quick test_record;
             test_case "deriving variant" `Quick test_variant;
             test_case "deriving tree like" `Quick test_tree;
+            test_case "deriving recursive" `Quick test_recursive;
           ] );
       ])
