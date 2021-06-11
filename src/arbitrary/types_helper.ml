@@ -56,7 +56,7 @@ module Primitive = struct
               Some
                 (E.pexp_apply
                    ~loc
-                   ~f:(E.pexp_lident ~loc @@ name (s ^ "'"))
+                   ~f:(E.pexp_lident ~loc @@ name s ^ "'")
                    ~args:[ (Nolabel, [%expr n - 1]) ]
                    ())
           | (_, Some xs) when List.mem s xs ->
