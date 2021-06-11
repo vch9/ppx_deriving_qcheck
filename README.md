@@ -39,7 +39,7 @@ This attribute has 2 advantages:
 ## How to use
 Install ppx_qcheck (dev version)
 ```
-$ opam pin install ppx_qcheck git+https//github.com/vch9/ppx_qcheck.git#dev
+$ opam pin add ppx_deriving_qcheck.dev git+https://github.com/vch9/ppx_deriving_qcheck.git#dev
 ```
 
 Add to your OCaml libraries with dune
