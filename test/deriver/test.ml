@@ -31,12 +31,16 @@ let loc = Location.none
 
 let f = Ppx_deriving_qcheck.derive_arbitrary ~loc
 
+let f' xs = List.map f xs |> List.concat
+
 let extract stri =
   match stri.pstr_desc with Pstr_type (x, y) -> (x, y) | _ -> assert false
 
+let extract' xs = List.map extract xs
+
 let check_eq ~expected ~actual name =
-  let structure = Alcotest.of_pp Ppxlib.Pprintast.structure in
-  Alcotest.(check structure) name expected actual
+  let f = Ppxlib.Pprintast.string_of_structure in
+  Alcotest.(check string) name (f expected) (f actual)
 
 let test_int () =
   let expected = [ [%stri let arb = QCheck.int] ] in
@@ -112,6 +116,61 @@ let test_bytes () =
 
   check_eq ~expected ~actual "deriving int64"
 
+let test_tuple () =
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type t = int * int];
+           [%stri type t = int * int * int];
+           [%stri type t = int * int * int * int];
+           [%stri type t = int * int * int * int * int];
+           [%stri type t = int * int * int * int * int * int];
+         ]
+  in
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.map
+            (fun (arb_0, arb_1) -> (arb_0, arb_1))
+            (QCheck.pair QCheck.int QCheck.int)];
+      [%stri
+        let arb =
+          QCheck.map
+            (fun (arb_0, (arb_1, arb_2)) -> (arb_0, arb_1, arb_2))
+            (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int))];
+      [%stri
+        let arb =
+          QCheck.map
+            (fun ((arb_0, arb_1), (arb_2, arb_3)) ->
+              (arb_0, arb_1, arb_2, arb_3))
+            (QCheck.pair
+               (QCheck.pair QCheck.int QCheck.int)
+               (QCheck.pair QCheck.int QCheck.int))];
+      [%stri
+        let arb =
+          QCheck.map
+            (fun (arb_0, ((arb_1, arb_2), (arb_3, arb_4))) ->
+              (arb_0, arb_1, arb_2, arb_3, arb_4))
+            (QCheck.pair
+               QCheck.int
+               (QCheck.pair
+                  (QCheck.pair QCheck.int QCheck.int)
+                  (QCheck.pair QCheck.int QCheck.int)))];
+      [%stri
+        let arb =
+          QCheck.map
+            (fun ((arb_0, (arb_1, arb_2)), (arb_3, (arb_4, arb_5))) ->
+              (arb_0, arb_1, arb_2, arb_3, arb_4, arb_5))
+            (QCheck.pair
+               (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int))
+               (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int)))];
+    ]
+  in
+
+  check_eq ~expected ~actual "deriving tuples"
+
 let () =
   Alcotest.(
     run
@@ -130,5 +189,6 @@ let () =
             test_case "deriving int64" `Quick test_int64;
             test_case "deriving int64'" `Quick test_int64';
             test_case "deriving bytes" `Quick test_bytes;
+            test_case "deriving tuple" `Quick test_tuple;
           ] );
       ])
