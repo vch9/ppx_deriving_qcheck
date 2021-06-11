@@ -382,6 +382,55 @@ let test_record () =
   in
   check_eq ~expected ~actual "deriving record"
 
+let test_variant () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          (QCheck.oneof
+             [
+               QCheck.always `A;
+               QCheck.map (fun arb_0 -> `B arb_0) QCheck.int;
+               QCheck.map (fun arb_0 -> `C arb_0) QCheck.string;
+             ]
+            : t QCheck.arbitrary)];
+      [%stri
+        include struct
+          let rec arb () = arb' 5
+
+          and arb' = function
+            | 0 ->
+                (QCheck.oneof
+                   [
+                     QCheck.always `A;
+                     QCheck.map (fun arb_0 -> `B arb_0) QCheck.int;
+                     QCheck.map (fun arb_0 -> `C arb_0) QCheck.string;
+                   ]
+                  : t QCheck.arbitrary)
+            | n ->
+                (QCheck.oneof
+                   [
+                     QCheck.always `A;
+                     QCheck.map (fun arb_0 -> `B arb_0) QCheck.int;
+                     QCheck.map (fun arb_0 -> `C arb_0) QCheck.string;
+                     QCheck.map (fun arb_0 -> `D arb_0) (arb' (n - 1));
+                   ]
+                  : t QCheck.arbitrary)
+
+          let arb = arb ()
+        end];
+    ]
+  in
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type t = [ `A | `B of int | `C of string ]];
+           [%stri type t = [ `A | `B of int | `C of string | `D of t ]];
+         ]
+  in
+  check_eq ~expected ~actual "deriving variant"
+
 let () =
   Alcotest.(
     run
@@ -408,5 +457,6 @@ let () =
             test_case "deriving dependencies" `Quick test_dependencies;
             test_case "deriving constructors" `Quick test_konstr;
             test_case "deriving record" `Quick test_record;
+            test_case "deriving variant" `Quick test_variant;
           ] );
       ])
