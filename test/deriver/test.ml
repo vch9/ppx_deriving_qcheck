@@ -171,6 +171,28 @@ let test_tuple () =
 
   check_eq ~expected ~actual "deriving tuples"
 
+let test_option () =
+  let expected =
+    [
+      [%stri
+        let arb arb_a =
+          QCheck.oneof
+            [ QCheck.always None; QCheck.map (fun arb_0 -> Some arb_0) arb_a ]];
+      [%stri let arb = arb_my_option QCheck.int];
+      [%stri let arb = QCheck.option QCheck.int];
+    ]
+  in
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type 'a t = None | Some of 'a];
+           [%stri type t = int my_option];
+           [%stri type t = int option];
+         ]
+  in
+  check_eq ~expected ~actual "deriving option"
+
 let () =
   Alcotest.(
     run
@@ -190,5 +212,6 @@ let () =
             test_case "deriving int64'" `Quick test_int64';
             test_case "deriving bytes" `Quick test_bytes;
             test_case "deriving tuple" `Quick test_tuple;
+            test_case "deriving option" `Quick test_option;
           ] );
       ])
