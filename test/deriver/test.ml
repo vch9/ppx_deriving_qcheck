@@ -217,6 +217,41 @@ let test_list () =
   in
   check_eq ~expected ~actual "deriving list"
 
+let test_alpha () =
+  let expected =
+    [
+      [%stri let arb arb_a = arb_a];
+      [%stri let arb arb_a = QCheck.list arb_a];
+      [%stri
+        let arb arb_a = QCheck.oneof [ QCheck.map (fun arb_0 -> A arb_0) arb_a ]];
+      [%stri
+        let arb arb_a arb_b =
+          QCheck.oneof
+            [
+              QCheck.map
+                (fun (arb_0, arb_1) -> A (arb_0, arb_1))
+                (QCheck.pair arb_a arb_b);
+            ]];
+      [%stri
+        let arb arb_left arb_right =
+          QCheck.map
+            (fun (arb_0, arb_1) -> (arb_0, arb_1))
+            (QCheck.pair arb_left arb_right)];
+    ]
+  in
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type 'a t = 'a];
+           [%stri type 'a t = 'a list];
+           [%stri type 'a t = A of 'a];
+           [%stri type ('a, 'b) t = A of 'a * 'b];
+           [%stri type ('left, 'right) t = 'left * 'right];
+         ]
+  in
+  check_eq ~expected ~actual "deriving alpha"
+
 let () =
   Alcotest.(
     run
@@ -238,5 +273,6 @@ let () =
             test_case "deriving tuple" `Quick test_tuple;
             test_case "deriving option" `Quick test_option;
             test_case "deriving list" `Quick test_list;
+            test_case "deriving alpha" `Quick test_alpha;
           ] );
       ])
