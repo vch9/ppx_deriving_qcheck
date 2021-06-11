@@ -193,6 +193,30 @@ let test_option () =
   in
   check_eq ~expected ~actual "deriving option"
 
+let test_list () =
+  let expected =
+    [
+      [%stri let arb = QCheck.list QCheck.string];
+      [%stri
+        let arb =
+          QCheck.oneof
+            [
+              QCheck.map (fun arb_0 -> A arb_0) (QCheck.list QCheck.string);
+              QCheck.map (fun arb_0 -> B arb_0) (QCheck.list QCheck.int);
+            ]];
+    ]
+  in
+
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type t = string list];
+           [%stri type t = A of string list | B of int list];
+         ]
+  in
+  check_eq ~expected ~actual "deriving list"
+
 let () =
   Alcotest.(
     run
@@ -213,5 +237,6 @@ let () =
             test_case "deriving bytes" `Quick test_bytes;
             test_case "deriving tuple" `Quick test_tuple;
             test_case "deriving option" `Quick test_option;
+            test_case "deriving list" `Quick test_list;
           ] );
       ])
