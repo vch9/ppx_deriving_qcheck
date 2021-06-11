@@ -252,6 +252,49 @@ let test_alpha () =
   in
   check_eq ~expected ~actual "deriving alpha"
 
+let test_equal () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.oneof [ QCheck.always A; QCheck.always B; QCheck.always C ]];
+      [%stri
+        let arb_t' =
+          QCheck.oneof [ QCheck.always A; QCheck.always B; QCheck.always C ]];
+    ]
+  in
+  let actual =
+    f'
+    @@ extract'
+         [ [%stri type t = A | B | C]; [%stri type t' = t = A | B | C] ]
+  in
+  check_eq ~expected ~actual "deriving equal"
+
+let test_dependencies () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.oneof
+            [
+              QCheck.map (fun arb_0 -> Int arb_0) SomeModule.arb;
+              QCheck.map
+                (fun arb_0 -> Float arb_0)
+                SomeModule.SomeOtherModule.arb;
+            ]];
+    ]
+  in
+  let actual =
+    f
+    @@ extract
+         [%stri
+           type t =
+             | Int of SomeModule.t
+             | Float of SomeModule.SomeOtherModule.t]
+  in
+
+  check_eq ~expected ~actual "deriving dependencies"
+
 let () =
   Alcotest.(
     run
@@ -274,5 +317,7 @@ let () =
             test_case "deriving option" `Quick test_option;
             test_case "deriving list" `Quick test_list;
             test_case "deriving alpha" `Quick test_alpha;
+            test_case "deriving equal" `Quick test_equal;
+            test_case "deriving dependencies" `Quick test_dependencies;
           ] );
       ])
