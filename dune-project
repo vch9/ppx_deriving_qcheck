@@ -1,2 +1,2 @@
 (lang dune 2.8)
-(name ppx_qcheck)
+(name ppx_deriving_qcheck)

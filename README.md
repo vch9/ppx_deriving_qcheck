@@ -37,7 +37,7 @@ This attribute has 2 advantages:
   ```
 
 ## How to use
-Install ppx_qcheck (dev version)
+Install ppx_deriving_qcheck (dev version)
 ```
 $ opam pin add ppx_deriving_qcheck.dev git+https://github.com/vch9/ppx_deriving_qcheck.git#dev
 ```
