@@ -1,5 +1,5 @@
 (library
  (name arbitrary)
  (public_name ppx_deriving_qcheck.arbitrary)
- (libraries ppxlib qcheck common)
+ (libraries ppxlib qcheck ppx_pbt.ppx_pbt.common)
  (preprocess (pps ppxlib.metaquot)))

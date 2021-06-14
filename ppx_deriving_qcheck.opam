@@ -22,6 +22,11 @@ depends: [
   "metaquot" {>= "0.4"}
   "ppxlib" {>= "0.22.0"}
   "alcotest" {>= "1.4.0" }
+  "ppx_pbt"
+]
+
+pin-depends: [
+  ["ppx_pbt.dev" "git+https://gitlab.com/vch9/ppx_pbt.git#dev"]
 ]
 
 build: ["dune" "build" "-p" name "-j" jobs]
