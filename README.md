@@ -23,16 +23,21 @@ let arb : t QCheck.arbitrary = QCheck.(0 -- 10)
 
 This attribute has 2 advantages:
 * Use your own arbitrary for a specific type
-* Type is not available for a module
+* Arbitrary is not available for a type
   ```ocaml
-  type t = Time.t [@@deriving arb]
-                  ^^^^^^^^^^^^^^^^
-  Error: Unbound value Time.arb
+  type my_foo =
+  | Foo of my_other_type
+  | Bar of bool
+  [@@deriving arb]
+  ^^^^^^^^^^^^^^^^
+  Error: Unbound value arb_my_other_type
   
   (* Possible fix *)
-  let arb_time = Obj.magic
+  let arb_my_other_type = (* add your implementation here *)
   
-  type t = (Time.t [@arb arb_time])
+  type my_foo =
+  | Foo of my_other_type [@arb arb_my_other_type]
+  | Bar of bool
   [@@deriving arb]
   ```
 
