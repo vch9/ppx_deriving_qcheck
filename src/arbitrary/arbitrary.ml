@@ -105,8 +105,27 @@ let rec from_core_type ~loc ?tree_types ?rec_types ~ty ct =
       | Ptyp_var s -> T.Primitive.from_string ~loc s
       | Ptyp_variant (x, y, z) ->
           from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (x, y, z)
-      | _ -> Error.case_unsupported ~loc ~case:"Ppx.Gen.Types.from_core_type" ()
-      )
+      | Ptyp_arrow (_, left, right) ->
+          from_arrow ?tree_types ?rec_types ~loc ~ty (left, right)
+      | _ ->
+          Error.location_error
+            ~loc:ct.ptyp_loc
+            ~msg:"This type is not supported yet"
+            ())
+
+and from_arrow ~loc ?tree_types ?rec_types ~ty (left, right) =
+  let f = T.observable ~loc in
+  let rec arrow_to_list x : expression list * expression =
+    match x.ptyp_desc with
+    | Ptyp_arrow (_, left, right) ->
+        let (acc, x) = arrow_to_list right in
+        (f left :: acc, x)
+    | _ -> ([], from_core_type ~loc ?tree_types ?rec_types ~ty x)
+  in
+  let (obs, arb) = arrow_to_list right in
+  let obs = f left :: obs in
+
+  T.fun_nary ~loc obs arb
 
 (* [from_ptyp_variant] is not the same as [from_variant] *)
 and from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (rws, _, _) =
@@ -217,13 +236,15 @@ let from_type_declaration ~loc ?rec_types td =
   in
 
   let args = extract_args ~loc td.ptype_params in
-  let rec_flags = !rec_flags in
 
-  T.gen ~loc ~rec_flags ~args ~ty ~body ()
+  T.gen ~loc ~rec_flags:!rec_flags ~args ~ty ~body ()
 
 let from_type_declaration_rec ~loc xs =
   let tys = List.map (fun x -> x.ptype_name.txt) xs in
   let gens =
     List.map (fun x -> from_type_declaration ~loc ~rec_types:tys x) xs
   in
+
+  (* Once every generator is done, we reset the environment *)
+  let () = rec_flags := [] in
   T.gens ~loc ~tys ~gens ()
