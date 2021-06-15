@@ -162,7 +162,11 @@ and from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (rws, _, _) =
 and from_type_kind ~loc ?rec_types ~ty = function
   | Ptype_record xs -> from_record ~loc ?rec_types ~ty xs
   | Ptype_variant xs -> from_variant ~loc ?rec_types ~ty xs
-  | _ -> failwith "TODO 1"
+  | _ ->
+      Error.location_error
+        ~loc
+        ~msg:"Don't know what to do with that type kind"
+        ()
 
 and from_record ~loc ?rec_types ~ty label_decls =
   let gens =
