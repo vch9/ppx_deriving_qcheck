@@ -292,7 +292,16 @@ let gens ~loc ~tys ~gens () =
 
   S.str_include ~loc @@ aux_gens :: real_gens
 
-let observable ~loc x =
+let observable' ~loc ~error = function
+  | "unit" -> [%expr QCheck.Observable.unit]
+  | "bool" -> [%expr QCheck.Observable.bool]
+  | "int" -> [%expr QCheck.Observable.int]
+  | "float" -> [%expr QCheck.Observable.float]
+  | "string" -> [%expr QCheck.Observable.string]
+  | "char" -> [%expr QCheck.Observable.char]
+  | _ -> error ()
+
+let rec observable ~loc x =
   let error () =
     Error.location_error
       ~loc:x.ptyp_loc
@@ -300,15 +309,33 @@ let observable ~loc x =
       ()
   in
   match x.ptyp_desc with
-  | Ptyp_constr ({ txt = Lident ty; _ }, []) -> (
-      match ty with
-      | "unit" -> [%expr QCheck.Observable.unit]
-      | "bool" -> [%expr QCheck.Observable.bool]
-      | "int" -> [%expr QCheck.Observable.int]
-      | "float" -> [%expr QCheck.Observable.float]
-      | "string" -> [%expr QCheck.Observable.string]
-      | "char" -> [%expr QCheck.Observable.char]
-      | _ -> error ())
+  | Ptyp_constr ({ txt = Lident ty; _ }, []) -> observable' ~loc ~error ty
+  | Ptyp_constr ({ txt = Lident "option"; _ }, [ x ]) ->
+      let x' = observable ~loc x in
+      [%expr QCheck.Observable.option [%e x']]
+  | Ptyp_constr ({ txt = Lident "list"; _ }, [ x ]) ->
+      let x' = observable ~loc x in
+      [%expr QCheck.Observable.list [%e x']]
+  | Ptyp_constr ({ txt = Lident "array"; _ }, [ x ]) ->
+      let x' = observable ~loc x in
+      [%expr QCheck.Observable.array [%e x']]
+  (* For now I kept myself to [pair; triple; quad], but we could nest generators inside
+     pairs *)
+  | Ptyp_tuple [ x1; x2 ] ->
+      let x1' = observable ~loc x1 in
+      let x2' = observable ~loc x2 in
+      [%expr QCheck.Observable.pair [%e x1'] [%e x2']]
+  | Ptyp_tuple [ x1; x2; x3 ] ->
+      let x1' = observable ~loc x1 in
+      let x2' = observable ~loc x2 in
+      let x3' = observable ~loc x3 in
+      [%expr QCheck.Observable.triple [%e x1'] [%e x2'] [%e x3']]
+  | Ptyp_tuple [ x1; x2; x3; x4 ] ->
+      let x1' = observable ~loc x1 in
+      let x2' = observable ~loc x2 in
+      let x3' = observable ~loc x3 in
+      let x4' = observable ~loc x4 in
+      [%expr QCheck.Observable.quad [%e x1'] [%e x2'] [%e x3'] [%e x4']]
   | _ -> error ()
 
 let fun_nary ~loc obs x =
