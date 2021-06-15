@@ -285,3 +285,9 @@ val gens :
   gens:structure_item list ->
   unit ->
   structure_item
+
+(** [observable loc x] create an QCheck.Observable.t if [x] is an observable *)
+val observable : loc:location -> core_type -> expression
+
+(** [fun_nary loc obs x] create an ('a Tuple.t -> 'b) fun_ arbitrary *)
+val fun_nary : loc:location -> expression list -> expression -> expression

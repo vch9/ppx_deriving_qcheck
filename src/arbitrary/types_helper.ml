@@ -291,3 +291,29 @@ let gens ~loc ~tys ~gens () =
   let aux_gens = S.structure_item ~loc @@ Pstr_value (Recursive, vbs) in
 
   S.str_include ~loc @@ aux_gens :: real_gens
+
+let observable ~loc x =
+  let error () =
+    Error.location_error
+      ~loc:x.ptyp_loc
+      ~msg:"This type is not supported yet for QCheck.Observable.t"
+      ()
+  in
+  match x.ptyp_desc with
+  | Ptyp_constr ({ txt = Lident ty; _ }, []) -> (
+      match ty with
+      | "unit" -> [%expr QCheck.Observable.unit]
+      | "bool" -> [%expr QCheck.Observable.bool]
+      | "int" -> [%expr QCheck.Observable.int]
+      | "float" -> [%expr QCheck.Observable.float]
+      | "string" -> [%expr QCheck.Observable.string]
+      | "char" -> [%expr QCheck.Observable.char]
+      | _ -> error ())
+  | _ -> error ()
+
+let fun_nary ~loc obs x =
+  let rec tuple = function
+    | [] -> [%expr o_nil]
+    | ob :: obs -> [%expr [%e ob] @-> [%e tuple obs]]
+  in
+  [%expr QCheck.(fun_nary Tuple.([%e tuple obs]) [%e x])]
