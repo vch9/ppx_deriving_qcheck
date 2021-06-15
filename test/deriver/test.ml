@@ -557,8 +557,7 @@ let test_recursive () =
   in
   check_eq ~expected ~actual "deriving recursive"
 
-let test_fun () =
-  (* TODO: more test here *)
+let test_fun_axiom () =
   let expected =
     [
       [%stri
@@ -599,6 +598,26 @@ let test_fun () =
         let arb =
           QCheck.(
             fun_nary Tuple.(QCheck.Observable.unit @-> o_nil) QCheck.string)];
+    ]
+  in
+
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type t = int -> int -> string];
+           [%stri type t = float -> float -> string];
+           [%stri type t = string -> string -> string];
+           [%stri type t = bool -> bool -> string];
+           [%stri type t = char -> char -> string];
+           [%stri type t = unit -> string];
+         ]
+  in
+  check_eq ~expected ~actual "deriving fun axioms"
+
+let test_fun_n () =
+  let expected =
+    [
       [%stri
         let arb =
           QCheck.(
@@ -611,19 +630,100 @@ let test_fun () =
     ]
   in
   let actual =
+    f @@ extract [%stri type t = bool -> int -> float -> string -> char -> unit]
+  in
+  check_eq ~expected ~actual "deriving fun n"
+
+let test_fun_option () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(QCheck.Observable.option QCheck.Observable.int @-> o_nil)
+              QCheck.unit)];
+    ]
+  in
+  let actual = f @@ extract [%stri type t = int option -> unit] in
+  check_eq ~expected ~actual "deriving fun option"
+
+let test_fun_list () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(QCheck.Observable.list QCheck.Observable.int @-> o_nil)
+              QCheck.unit)];
+    ]
+  in
+  let actual = f @@ extract [%stri type t = int list -> unit] in
+  check_eq ~expected ~actual "deriving fun list"
+
+let test_fun_array () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(QCheck.Observable.array QCheck.Observable.int @-> o_nil)
+              QCheck.unit)];
+    ]
+  in
+  let actual = f @@ extract [%stri type t = int array -> unit] in
+  check_eq ~expected ~actual "deriving fun array"
+
+let test_fun_tuple () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.pair
+                  QCheck.Observable.int
+                  QCheck.Observable.int
+                @-> o_nil)
+              QCheck.unit)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.triple
+                  QCheck.Observable.int
+                  QCheck.Observable.int
+                  QCheck.Observable.int
+                @-> o_nil)
+              QCheck.unit)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.quad
+                  QCheck.Observable.int
+                  QCheck.Observable.int
+                  QCheck.Observable.int
+                  QCheck.Observable.int
+                @-> o_nil)
+              QCheck.unit)];
+    ]
+  in
+  let actual =
     f'
     @@ extract'
          [
-           [%stri type t = int -> int -> string];
-           [%stri type t = float -> float -> string];
-           [%stri type t = string -> string -> string];
-           [%stri type t = bool -> bool -> string];
-           [%stri type t = char -> char -> string];
-           [%stri type t = unit -> string];
-           [%stri type t = bool -> int -> float -> string -> char -> unit];
+           [%stri type t = int * int -> unit];
+           [%stri type t = int * int * int -> unit];
+           [%stri type t = int * int * int * int -> unit];
          ]
   in
-  check_eq ~expected ~actual "deriving fun"
+  check_eq ~expected ~actual "deriving fun tuple"
 
 let () =
   Alcotest.(
@@ -654,6 +754,11 @@ let () =
             test_case "deriving variant" `Quick test_variant;
             test_case "deriving tree like" `Quick test_tree;
             test_case "deriving recursive" `Quick test_recursive;
-            test_case "deriving fun" `Quick test_fun;
+            test_case "deriving fun axioms" `Quick test_fun_axiom;
+            test_case "deriving fun n" `Quick test_fun_n;
+            test_case "deriving fun option" `Quick test_fun_option;
+            test_case "deriving fun list" `Quick test_fun_list;
+            test_case "deriving fun array" `Quick test_fun_array;
+            test_case "deriving fun tuple" `Quick test_fun_tuple;
           ] );
       ])
