@@ -77,7 +77,11 @@ val from_core_type :
     - [X] type kind is a record, we use [from_record]
     - [X] type kind is a tuple, we use [from_record] *)
 val from_type_kind :
-  loc:location -> ?rec_types:string list -> ty:string -> type_kind -> expression
+  loc:location ->
+  ?rec_types:string list ->
+  ty:string ->
+  type_kind ->
+  expression option
 
 (** Transform a record into a record QCheck.arbitrary *)
 val from_record :

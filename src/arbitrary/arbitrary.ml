@@ -160,13 +160,9 @@ and from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (rws, _, _) =
   else List.map (to_expr basic) rws |> T.variants ~loc ~ty
 
 and from_type_kind ~loc ?rec_types ~ty = function
-  | Ptype_record xs -> from_record ~loc ?rec_types ~ty xs
-  | Ptype_variant xs -> from_variant ~loc ?rec_types ~ty xs
-  | _ ->
-      Error.location_error
-        ~loc
-        ~msg:"Don't know what to do with that type kind"
-        ()
+  | Ptype_record xs -> Some (from_record ~loc ?rec_types ~ty xs)
+  | Ptype_variant xs -> Some (from_variant ~loc ?rec_types ~ty xs)
+  | _ -> None
 
 and from_record ~loc ?rec_types ~ty label_decls =
   let gens =
@@ -223,20 +219,18 @@ and from_constructor_decl ~loc ?tree_types ?rec_types ~ty x =
 let from_type_declaration ~loc ?rec_types td =
   let ty = td.ptype_name.txt in
 
-  let type_kind =
-    Helpers.opt (fun () -> from_type_kind ~loc ?rec_types ~ty td.ptype_kind)
-  in
+  let type_kind = from_type_kind ~loc ?rec_types ~ty td.ptype_kind in
   let body =
     match (td.ptype_manifest, type_kind) with
     (* We consider that type_kind contains the type information, and we take it
        over type_manifest *)
+    | (Some ct, _) -> from_core_type ~loc ?rec_types ~ty ct
     | (_, Some x) -> x
-    | (Some ct, None) -> from_core_type ~loc ?rec_types ~ty ct
-    | (None, None) ->
-        (* Getting here is because of 2 events:
-           - type_kind raised an exception,
-           - ptyp_manifest is absent *)
-        assert false
+    | _ ->
+        Error.location_error
+          ~loc
+          ~msg:"Unknown scenario, please report to project issues"
+          ()
   in
 
   let args = extract_args ~loc td.ptype_params in
