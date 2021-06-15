@@ -258,9 +258,7 @@ let test_equal () =
       [%stri
         let arb =
           QCheck.oneof [ QCheck.always A; QCheck.always B; QCheck.always C ]];
-      [%stri
-        let arb_t' =
-          QCheck.oneof [ QCheck.always A; QCheck.always B; QCheck.always C ]];
+      [%stri let arb_t' = arb];
     ]
   in
   let actual =
