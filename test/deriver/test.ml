@@ -557,6 +557,74 @@ let test_recursive () =
   in
   check_eq ~expected ~actual "deriving recursive"
 
+let test_fun () =
+  (* TODO: more test here *)
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(QCheck.Observable.int @-> QCheck.Observable.int @-> o_nil)
+              QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.float @-> QCheck.Observable.float @-> o_nil)
+              QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.string @-> QCheck.Observable.string @-> o_nil)
+              QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.bool @-> QCheck.Observable.bool @-> o_nil)
+              QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.char @-> QCheck.Observable.char @-> o_nil)
+              QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary Tuple.(QCheck.Observable.unit @-> o_nil) QCheck.string)];
+      [%stri
+        let arb =
+          QCheck.(
+            fun_nary
+              Tuple.(
+                QCheck.Observable.bool @-> QCheck.Observable.int
+                @-> QCheck.Observable.float @-> QCheck.Observable.string
+                @-> QCheck.Observable.char @-> o_nil)
+              QCheck.unit)];
+    ]
+  in
+  let actual =
+    f'
+    @@ extract'
+         [
+           [%stri type t = int -> int -> string];
+           [%stri type t = float -> float -> string];
+           [%stri type t = string -> string -> string];
+           [%stri type t = bool -> bool -> string];
+           [%stri type t = char -> char -> string];
+           [%stri type t = unit -> string];
+           [%stri type t = bool -> int -> float -> string -> char -> unit];
+         ]
+  in
+  check_eq ~expected ~actual "deriving fun"
+
 let () =
   Alcotest.(
     run
@@ -586,5 +654,6 @@ let () =
             test_case "deriving variant" `Quick test_variant;
             test_case "deriving tree like" `Quick test_tree;
             test_case "deriving recursive" `Quick test_recursive;
+            test_case "deriving fun" `Quick test_fun;
           ] );
       ])
