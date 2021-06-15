@@ -22,7 +22,7 @@ let arb : t QCheck.arbitrary = QCheck.(0 -- 10)
 ```
 
 This attribute has 2 advantages:
-* Use your own arbitrary for a specific type
+* Use your own arbitrary for a specific type (see above)
 * Arbitrary is not available for a type
   ```ocaml
   type my_foo =
