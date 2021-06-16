@@ -169,24 +169,26 @@ val tuple' :
 *)
 val tuple : loc:location -> expression list -> expression
 
-(** Convert a list of constructors into a single expression choosing the constructor
+(** [constructors loc xs] convert a list of (weight option * constructor) into a single
+    expression choosing the constructor using it's weight (1 if it's not provided).
 
     Example:
     {[
     type t =
-    | A
-    | B
+    | A [@weight 5]
+    | B [@weight 6]
     | C
     [@@gen]
 
     let gen_t =
       let open QCheck in
-      oneof [ make @@ Gen.return A ;
-              make @@ Gen.return B ;
-              make @@ Gen.return C ]
+      frequency [ (5, always A) ;
+                  (6, always B) ;
+                  (1, always C) ]
     ]}
 *)
-val constructors : loc:location -> expression list -> expression
+val constructors :
+  loc:location -> (expression option * expression) list -> expression
 
 (** Convert a constructor name into an expression constructor QCheck.arbitrary
 
@@ -218,7 +220,7 @@ val constructor :
   expression
 
 (** [tree' loc leaves nodes ()] is almost the same function as {!tree'}
-    the only difference is that QCheck.oneof is already applied to leaves and
+    the only difference is that QCheck.frequency is already applied to leaves and
     nodes *)
 val tree' :
   loc:location -> leaves:expression -> nodes:expression -> unit -> expression
@@ -236,15 +238,15 @@ val tree' :
     let rec gen_tree fuel =
       let open QCheck in
       match fuel with
-      | 0 -> oneof [ make @@ Gen.return Leaf ]
+      | 0 -> frequency [(1, always Leaf)]
       | n ->
-        oneof
+        frequency
           [
-            always Leaf;
-            map
+            (1, always Leaf) ;
+            (1, map
               (fun (gen_0, (gen_1, gen_2)) -> Node (gen_0, gen_1, gen_2))
               (pair int
-                 (pair (gen_tree (n - 1)) (gen_tree (n - 1))));
+                 (pair (gen_tree (n - 1)) (gen_tree (n - 1)))))
           ]
 
     let gen_tree = gen_tree 5
@@ -252,17 +254,22 @@ val tree' :
  *)
 val tree :
   loc:location ->
-  leaves:expression list ->
-  nodes:expression list ->
+  leaves:(expression option * expression) list ->
+  nodes:(expression option * expression) list ->
   unit ->
   expression
 
 (** [variants loc ty xs] create a QCheck.arbitrary using [xs] to produce
     Ptyp_variant _ list. We also require [ty] to constraint the expression
     to a {[ t QCheck.arbitrary ]} where {[ t ]} is the current type we
-    are deriving *)
+    are deriving.
+
+    Each variant can have a specific weight, see {!constructors}. *)
 val variants :
-  loc:location -> ty:string -> (string * expression list) list -> expression
+  loc:location ->
+  ty:string ->
+  (string * expression option * expression list) list ->
+  expression
 
 (** Create a QCheck.arbitrary using args name and body
 

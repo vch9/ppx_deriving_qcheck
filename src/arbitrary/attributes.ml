@@ -29,10 +29,15 @@ open Ppxlib
 let find_attribute_opt xs name =
   List.find_opt (fun attribute -> attribute.attr_name.txt = name) xs
 
-let arb ~loc:_ ct =
-  match find_attribute_opt ct.ptyp_attributes "arb" with
-  | None -> None
-  | Some x -> (
-      match x.attr_payload with
-      | PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> Some [%expr [%e e]]
-      | _ -> None)
+let get_expr_payload x =
+  match x.attr_payload with
+  | PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> Some [%expr [%e e]]
+  | _ -> None
+
+let arb ct =
+  Option.fold ~none:None ~some:get_expr_payload
+  @@ find_attribute_opt ct.ptyp_attributes "arb"
+
+let weight xs =
+  Option.fold ~none:None ~some:get_expr_payload
+  @@ find_attribute_opt xs "weight"

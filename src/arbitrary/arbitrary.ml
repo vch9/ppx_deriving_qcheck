@@ -91,7 +91,7 @@ and is_recursive_row_fields ~loc ~ty rws =
   List.exists (is_recursive_row_field ~loc ~ty) rws
 
 let rec from_core_type ~loc ?tree_types ?rec_types ~ty ct =
-  match Attributes.arb ~loc ct with
+  match Attributes.arb ct with
   | Some x -> x
   | None -> (
       match ct.ptyp_desc with
@@ -113,6 +113,11 @@ let rec from_core_type ~loc ?tree_types ?rec_types ~ty ct =
             ~msg:"This type is not supported yet"
             ())
 
+and from_core_type_weighted ~loc ?tree_types ?rec_types ~ty ct =
+  let weight = Attributes.weight ct.ptyp_attributes in
+  let arb = from_core_type ~loc ?tree_types ?rec_types ~ty ct in
+  Option.fold ~none:([%expr 1], arb) ~some:(fun w -> (w, arb)) weight
+
 and from_arrow ~loc ?tree_types ?rec_types ~ty (left, right) =
   let f = T.observable ~loc in
   let rec arrow_to_list x : expression list * expression =
@@ -132,7 +137,8 @@ and from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (rws, _, _) =
   (* Transforms a row_field to the pair (variant name, generators) *)
   let to_expr f rw =
     match rw.prf_desc with
-    | Rtag ({ txt; _ }, _, cts) -> (txt, List.map f cts)
+    | Rtag ({ txt; _ }, _, cts) ->
+        (txt, Attributes.weight rw.prf_attributes, List.map f cts)
     | _ -> assert false
     (* If we get here, an exception should already have been raised *)
   in
@@ -195,26 +201,31 @@ and from_variant ~loc ?rec_types ~ty xs =
 
     T.tree ~loc ~leaves ~nodes ())
   else
-    let gens = List.map (from_constructor_decl ~loc ?rec_types ~ty) xs in
-    T.constructors ~loc gens
+    List.map (from_constructor_decl ~loc ?rec_types ~ty) xs
+    |> T.constructors ~loc
 
 and from_constructor_decl ~loc ?tree_types ?rec_types ~ty x =
   let kname = x.pcd_name.txt in
   let f ~kargs = T.constructor ~loc ~kname ~kargs () in
-  match x.pcd_args with
-  | Pcstr_tuple [] | Pcstr_record [] -> T.constructor ~loc ~kname ()
-  | Pcstr_tuple xs ->
-      let gens = List.map (from_core_type ~loc ?tree_types ?rec_types ~ty) xs in
-      let kargs = T.tuple' ~loc gens in
-      f ~kargs
-  | Pcstr_record xs ->
-      let gens =
-        List.map
-          (fun x -> from_core_type ~loc ?tree_types ?rec_types ~ty x.pld_type)
-          xs
-      in
-      let kargs = T.record' ~loc ~gens xs in
-      f ~kargs
+  let constr =
+    match x.pcd_args with
+    | Pcstr_tuple [] | Pcstr_record [] -> T.constructor ~loc ~kname ()
+    | Pcstr_tuple xs ->
+        let gens =
+          List.map (from_core_type ~loc ?tree_types ?rec_types ~ty) xs
+        in
+        let kargs = T.tuple' ~loc gens in
+        f ~kargs
+    | Pcstr_record xs ->
+        let gens =
+          List.map
+            (fun x -> from_core_type ~loc ?tree_types ?rec_types ~ty x.pld_type)
+            xs
+        in
+        let kargs = T.record' ~loc ~gens xs in
+        f ~kargs
+  in
+  (Attributes.weight x.pcd_attributes, constr)
 
 let from_type_declaration ~loc ?rec_types td =
   let ty = td.ptype_name.txt in
@@ -222,8 +233,6 @@ let from_type_declaration ~loc ?rec_types td =
   let type_kind = from_type_kind ~loc ?rec_types ~ty td.ptype_kind in
   let body =
     match (td.ptype_manifest, type_kind) with
-    (* We consider that type_kind contains the type information, and we take it
-       over type_manifest *)
     | (Some ct, _) -> from_core_type ~loc ?rec_types ~ty ct
     | (_, Some x) -> x
     | _ ->

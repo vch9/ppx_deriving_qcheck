@@ -38,4 +38,16 @@ open Ppxlib
     It allows the user to specify which arbitrary he wants for a specific type.
     Returns the arbitrary as an expression and returns None if no attribute
     is present *)
-val arb : loc:location -> core_type -> expression option
+val arb : core_type -> expression option
+
+(** [weight loc ct] look for an attribute "weight" in [ct]
+
+    example:
+    {[
+    type t =
+    | A [@weight 5]
+    | B [@weight 6]
+    | C
+    ]}
+    It allows the user to specify the weight of a type case. *)
+val weight : attributes -> expression option

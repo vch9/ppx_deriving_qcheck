@@ -72,6 +72,38 @@ val from_core_type :
   core_type ->
   expression
 
+(**
+   [from_core_type_weighted loc ty ct] is a variant of {!from_core_type} with a weight
+
+   {[
+   type t =
+   | A
+   | B
+   | C
+   [@@deriving arb]
+
+   (* Original from_core_type would produce: *)
+
+   let arb = QCheck.(frequency [(1, always A); (1, always B); (1, always C)]
+
+   type t =
+   | A [@weight 5]
+   | B [@weight 6]
+   | C
+   [@@deriving arb]
+
+   (* from_core_type_weighted will produce *)
+   let arb = QCheck.(frequency [(5, always A); (6, always B); (1, always C)])
+   ]}
+ *)
+val from_core_type_weighted :
+  loc:location ->
+  ?tree_types:string list ->
+  ?rec_types:string list ->
+  ty:string ->
+  core_type ->
+  expression * expression
+
 (** Transform a type kind into a QCheck.arbitrary
     
     - [X] type kind is a record, we use [from_record]
@@ -123,33 +155,18 @@ val from_variant :
   constructor_declaration list ->
   expression
 
-(** Transform a constructor declaration into a 'a QCheck.arbitrary
+(** [from_constructor_decl loc ty cd] returns the pair (weight option * arbitrary)
+    for [cd].
 
-    - [X] constructors without argument
-      {[
-      type t = A | B | C [@@gen]
-      ]}
-
-    - [X] constructors with argument
-
-      - [X] argument as tuple
-        {[
-        type t = A of int | B of int * int
-        ]}
-
-      - [X] argument as record
-        {[
-        type t = A of { a : int }
-        ]}
-
-    ?rec_types allows optional additional information to {!from_core_type} *)
+    weight is the optionak frequency of the arbitrary in a {[QCheck.frequency]} as
+    constructor declaration might often be inside a list of declaration *)
 val from_constructor_decl :
   loc:location ->
   ?tree_types:string list ->
   ?rec_types:string list ->
   ty:string ->
   constructor_declaration ->
-  expression
+  expression option * expression
 
 (** Transform a type declaration into a 'a QCheck.arbitrary *)
 val from_type_declaration :
