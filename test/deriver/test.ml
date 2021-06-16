@@ -176,8 +176,11 @@ let test_option () =
     [
       [%stri
         let arb arb_a =
-          QCheck.oneof
-            [ QCheck.always None; QCheck.map (fun arb_0 -> Some arb_0) arb_a ]];
+          QCheck.frequency
+            [
+              (1, QCheck.always None);
+              (1, QCheck.map (fun arb_0 -> Some arb_0) arb_a);
+            ]];
       [%stri let arb = arb_my_option QCheck.int];
       [%stri let arb = QCheck.option QCheck.int];
     ]
@@ -199,10 +202,10 @@ let test_list () =
       [%stri let arb = QCheck.list QCheck.string];
       [%stri
         let arb =
-          QCheck.oneof
+          QCheck.frequency
             [
-              QCheck.map (fun arb_0 -> A arb_0) (QCheck.list QCheck.string);
-              QCheck.map (fun arb_0 -> B arb_0) (QCheck.list QCheck.int);
+              (1, QCheck.map (fun arb_0 -> A arb_0) (QCheck.list QCheck.string));
+              (1, QCheck.map (fun arb_0 -> B arb_0) (QCheck.list QCheck.int));
             ]];
     ]
   in
@@ -223,14 +226,16 @@ let test_alpha () =
       [%stri let arb arb_a = arb_a];
       [%stri let arb arb_a = QCheck.list arb_a];
       [%stri
-        let arb arb_a = QCheck.oneof [ QCheck.map (fun arb_0 -> A arb_0) arb_a ]];
+        let arb arb_a =
+          QCheck.frequency [ (1, QCheck.map (fun arb_0 -> A arb_0) arb_a) ]];
       [%stri
         let arb arb_a arb_b =
-          QCheck.oneof
+          QCheck.frequency
             [
-              QCheck.map
-                (fun (arb_0, arb_1) -> A (arb_0, arb_1))
-                (QCheck.pair arb_a arb_b);
+              ( 1,
+                QCheck.map
+                  (fun (arb_0, arb_1) -> A (arb_0, arb_1))
+                  (QCheck.pair arb_a arb_b) );
             ]];
       [%stri
         let arb arb_left arb_right =
@@ -257,7 +262,8 @@ let test_equal () =
     [
       [%stri
         let arb =
-          QCheck.oneof [ QCheck.always A; QCheck.always B; QCheck.always C ]];
+          QCheck.frequency
+            [ (1, QCheck.always A); (1, QCheck.always B); (1, QCheck.always C) ]];
       [%stri let arb_t' = arb];
     ]
   in
@@ -273,12 +279,13 @@ let test_dependencies () =
     [
       [%stri
         let arb =
-          QCheck.oneof
+          QCheck.frequency
             [
-              QCheck.map (fun arb_0 -> Int arb_0) SomeModule.arb;
-              QCheck.map
-                (fun arb_0 -> Float arb_0)
-                SomeModule.SomeOtherModule.arb;
+              (1, QCheck.map (fun arb_0 -> Int arb_0) SomeModule.arb);
+              ( 1,
+                QCheck.map
+                  (fun arb_0 -> Float arb_0)
+                  SomeModule.SomeOtherModule.arb );
             ]];
       [%stri let arb = gen_something];
     ]
@@ -301,34 +308,40 @@ let test_konstr () =
   let expected =
     [
       [%stri
-        let arb = QCheck.oneof [ QCheck.map (fun arb_0 -> A arb_0) QCheck.int ]];
+        let arb =
+          QCheck.frequency [ (1, QCheck.map (fun arb_0 -> A arb_0) QCheck.int) ]];
       [%stri
         let arb =
-          QCheck.oneof
+          QCheck.frequency
             [
-              QCheck.map (fun arb_0 -> B arb_0) QCheck.int;
-              QCheck.map (fun arb_0 -> C arb_0) QCheck.int;
+              (1, QCheck.map (fun arb_0 -> B arb_0) QCheck.int);
+              (1, QCheck.map (fun arb_0 -> C arb_0) QCheck.int);
             ]];
       [%stri
         let arb =
-          QCheck.oneof
+          QCheck.frequency
             [
-              QCheck.map (fun arb_0 -> X arb_0) arb_t1;
-              QCheck.map (fun arb_0 -> Y arb_0) arb_t2;
-              QCheck.map (fun arb_0 -> Z arb_0) QCheck.string;
+              (1, QCheck.map (fun arb_0 -> X arb_0) arb_t1);
+              (1, QCheck.map (fun arb_0 -> Y arb_0) arb_t2);
+              (1, QCheck.map (fun arb_0 -> Z arb_0) QCheck.string);
             ]];
-      [%stri let arb = QCheck.oneof [ QCheck.always Left; QCheck.always Right ]];
       [%stri
         let arb =
-          QCheck.oneof
+          QCheck.frequency [ (1, QCheck.always Left); (1, QCheck.always Right) ]];
+      [%stri
+        let arb =
+          QCheck.frequency
             [
-              QCheck.map (fun arb_0 -> Simple arb_0) QCheck.int;
-              QCheck.map
-                (fun (arb_0, arb_1) -> Double (arb_0, arb_1))
-                (QCheck.pair QCheck.int QCheck.int);
-              QCheck.map
-                (fun (arb_0, (arb_1, arb_2)) -> Triple (arb_0, arb_1, arb_2))
-                (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int));
+              (1, QCheck.map (fun arb_0 -> Simple arb_0) QCheck.int);
+              ( 1,
+                QCheck.map
+                  (fun (arb_0, arb_1) -> Double (arb_0, arb_1))
+                  (QCheck.pair QCheck.int QCheck.int) );
+              ( 1,
+                QCheck.map
+                  (fun (arb_0, (arb_1, arb_2)) -> Triple (arb_0, arb_1, arb_2))
+                  (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int))
+              );
             ]];
     ]
   in
@@ -364,12 +377,13 @@ let test_record () =
             (QCheck.pair QCheck.int QCheck.string)];
       [%stri
         let arb =
-          QCheck.oneof
+          QCheck.frequency
             [
-              QCheck.map (fun arb_0 -> A arb_0) arb_t';
-              QCheck.map
-                (fun (arb_0, arb_1) -> B { left = arb_0; right = arb_1 })
-                (QCheck.pair QCheck.int QCheck.int);
+              (1, QCheck.map (fun arb_0 -> A arb_0) arb_t');
+              ( 1,
+                QCheck.map
+                  (fun (arb_0, arb_1) -> B { left = arb_0; right = arb_1 })
+                  (QCheck.pair QCheck.int QCheck.int) );
             ]];
     ]
   in
@@ -389,11 +403,11 @@ let test_variant () =
     [
       [%stri
         let arb =
-          (QCheck.oneof
+          (QCheck.frequency
              [
-               QCheck.always `A;
-               QCheck.map (fun arb_0 -> `B arb_0) QCheck.int;
-               QCheck.map (fun arb_0 -> `C arb_0) QCheck.string;
+               (1, QCheck.always `A);
+               (1, QCheck.map (fun arb_0 -> `B arb_0) QCheck.int);
+               (1, QCheck.map (fun arb_0 -> `C arb_0) QCheck.string);
              ]
             : t QCheck.arbitrary)];
       [%stri
@@ -402,20 +416,20 @@ let test_variant () =
 
           and arb' = function
             | 0 ->
-                (QCheck.oneof
+                (QCheck.frequency
                    [
-                     QCheck.always `A;
-                     QCheck.map (fun arb_0 -> `B arb_0) QCheck.int;
-                     QCheck.map (fun arb_0 -> `C arb_0) QCheck.string;
+                     (1, QCheck.always `A);
+                     (1, QCheck.map (fun arb_0 -> `B arb_0) QCheck.int);
+                     (1, QCheck.map (fun arb_0 -> `C arb_0) QCheck.string);
                    ]
                   : t QCheck.arbitrary)
             | n ->
-                (QCheck.oneof
+                (QCheck.frequency
                    [
-                     QCheck.always `A;
-                     QCheck.map (fun arb_0 -> `B arb_0) QCheck.int;
-                     QCheck.map (fun arb_0 -> `C arb_0) QCheck.string;
-                     QCheck.map (fun arb_0 -> `D arb_0) (arb' (n - 1));
+                     (1, QCheck.always `A);
+                     (1, QCheck.map (fun arb_0 -> `B arb_0) QCheck.int);
+                     (1, QCheck.map (fun arb_0 -> `C arb_0) QCheck.string);
+                     (1, QCheck.map (fun arb_0 -> `D arb_0) (arb' (n - 1)));
                    ]
                   : t QCheck.arbitrary)
 
@@ -441,17 +455,19 @@ let test_tree () =
           let rec arb_tree () = arb_tree' 5
 
           and arb_tree' = function
-            | 0 -> QCheck.oneof [ QCheck.always Leaf ]
+            | 0 -> QCheck.frequency [ (1, QCheck.always Leaf) ]
             | n ->
-                QCheck.oneof
+                QCheck.frequency
                   [
-                    QCheck.always Leaf;
-                    QCheck.map
-                      (fun (arb_0, (arb_1, arb_2)) ->
-                        Node (arb_0, arb_1, arb_2))
-                      (QCheck.pair
-                         QCheck.int
-                         (QCheck.pair (arb_tree' (n - 1)) (arb_tree' (n - 1))));
+                    (1, QCheck.always Leaf);
+                    ( 1,
+                      QCheck.map
+                        (fun (arb_0, (arb_1, arb_2)) ->
+                          Node (arb_0, arb_1, arb_2))
+                        (QCheck.pair
+                           QCheck.int
+                           (QCheck.pair (arb_tree' (n - 1)) (arb_tree' (n - 1))))
+                    );
                   ]
 
           let arb_tree = arb_tree ()
@@ -462,23 +478,28 @@ let test_tree () =
 
           and arb_expr' = function
             | 0 ->
-                QCheck.oneof
-                  [ QCheck.map (fun arb_0 -> Value arb_0) QCheck.int ]
+                QCheck.frequency
+                  [ (1, QCheck.map (fun arb_0 -> Value arb_0) QCheck.int) ]
             | n ->
-                QCheck.oneof
+                QCheck.frequency
                   [
-                    QCheck.map (fun arb_0 -> Value arb_0) QCheck.int;
-                    QCheck.map
-                      (fun (arb_0, (arb_1, arb_2)) -> If (arb_0, arb_1, arb_2))
-                      (QCheck.pair
-                         (arb_expr' (n - 1))
-                         (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))));
-                    QCheck.map
-                      (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
-                      (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1)));
-                    QCheck.map
-                      (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
-                      (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1)));
+                    (1, QCheck.map (fun arb_0 -> Value arb_0) QCheck.int);
+                    ( 1,
+                      QCheck.map
+                        (fun (arb_0, (arb_1, arb_2)) ->
+                          If (arb_0, arb_1, arb_2))
+                        (QCheck.pair
+                           (arb_expr' (n - 1))
+                           (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))))
+                    );
+                    ( 1,
+                      QCheck.map
+                        (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
+                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
+                    ( 1,
+                      QCheck.map
+                        (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
+                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
                   ]
 
           let arb_expr = arb_expr ()
@@ -509,30 +530,35 @@ let test_recursive () =
 
           and arb_expr' = function
             | 0 ->
-                QCheck.oneof
-                  [ QCheck.map (fun arb_0 -> Value arb_0) (arb_value ()) ]
+                QCheck.frequency
+                  [ (1, QCheck.map (fun arb_0 -> Value arb_0) (arb_value ())) ]
             | n ->
-                QCheck.oneof
+                QCheck.frequency
                   [
-                    QCheck.map (fun arb_0 -> Value arb_0) (arb_value ());
-                    QCheck.map
-                      (fun (arb_0, (arb_1, arb_2)) -> If (arb_0, arb_1, arb_2))
-                      (QCheck.pair
-                         (arb_expr' (n - 1))
-                         (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))));
-                    QCheck.map
-                      (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
-                      (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1)));
-                    QCheck.map
-                      (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
-                      (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1)));
+                    (1, QCheck.map (fun arb_0 -> Value arb_0) (arb_value ()));
+                    ( 1,
+                      QCheck.map
+                        (fun (arb_0, (arb_1, arb_2)) ->
+                          If (arb_0, arb_1, arb_2))
+                        (QCheck.pair
+                           (arb_expr' (n - 1))
+                           (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))))
+                    );
+                    ( 1,
+                      QCheck.map
+                        (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
+                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
+                    ( 1,
+                      QCheck.map
+                        (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
+                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
                   ]
 
           and arb_value () =
-            QCheck.oneof
+            QCheck.frequency
               [
-                QCheck.map (fun arb_0 -> Bool arb_0) QCheck.bool;
-                QCheck.map (fun arb_0 -> Int arb_0) QCheck.int;
+                (1, QCheck.map (fun arb_0 -> Bool arb_0) QCheck.bool);
+                (1, QCheck.map (fun arb_0 -> Int arb_0) QCheck.int);
               ]
 
           let arb_expr = arb_expr ()
@@ -723,6 +749,20 @@ let test_fun_tuple () =
   in
   check_eq ~expected ~actual "deriving fun tuple"
 
+let test_weight_konstrs () =
+  let expected =
+    [
+      [%stri
+        let arb =
+          QCheck.frequency
+            [ (5, QCheck.always A); (6, QCheck.always B); (1, QCheck.always C) ]];
+    ]
+  in
+  let actual =
+    f @@ extract [%stri type t = A [@weight 5] | B [@weight 6] | C]
+  in
+  check_eq ~expected ~actual "deriving weight konstrs"
+
 let () =
   Alcotest.(
     run
@@ -758,5 +798,6 @@ let () =
             test_case "deriving fun list" `Quick test_fun_list;
             test_case "deriving fun array" `Quick test_fun_array;
             test_case "deriving fun tuple" `Quick test_fun_tuple;
+            test_case "deriving weight constructors" `Quick test_weight_konstrs;
           ] );
       ])
