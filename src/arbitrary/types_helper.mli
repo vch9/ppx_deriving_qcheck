@@ -264,11 +264,16 @@ val tree :
     to a {[ t QCheck.arbitrary ]} where {[ t ]} is the current type we
     are deriving.
 
+    `RTag represents the direct declaration of a variant {[type t = [`A]]}
+    `RInh represents an inheritage of another variant {[type t' = [`B | t]]}
+
     Each variant can have a specific weight, see {!constructors}. *)
 val variants :
   loc:location ->
   ty:string ->
-  (string * expression option * expression list) list ->
+  [< `RTag of string * expression option * expression list
+  | `RInh of expression option * expression ]
+  list ->
   expression
 
 (** Create a QCheck.arbitrary using args name and body

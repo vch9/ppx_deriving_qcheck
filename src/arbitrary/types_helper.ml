@@ -154,17 +154,20 @@ let tree ~loc ~leaves ~nodes () =
   tree' ~loc ~leaves ~nodes ()
 
 let variants' ~loc xs =
+  let rtag (label, w, gens) =
+    let v =
+      match gens with
+      | [] -> [%expr QCheck.always [%e E.pexp_variant ~loc ~label None]]
+      | gens ->
+          let (pat, gens, tuple) = tuple' ~loc gens in
+          let expr = E.pexp_variant ~loc ~label @@ Some tuple in
+          [%expr QCheck.map (fun [%p pat] -> [%e expr]) [%e gens]]
+    in
+    (w, v)
+  in
   List.map
-    (fun (label, w, gens) ->
-      let v =
-        match gens with
-        | [] -> [%expr QCheck.always [%e E.pexp_variant ~loc ~label None]]
-        | gens ->
-            let (pat, gens, tuple) = tuple' ~loc gens in
-            let expr = E.pexp_variant ~loc ~label @@ Some tuple in
-            [%expr QCheck.map (fun [%p pat] -> [%e expr]) [%e gens]]
-      in
-      (w, v))
+    (function
+      | `RTag (label, w, gens) -> rtag (label, w, gens) | `RInh (w, e) -> (w, e))
     xs
 
 let variants ~loc ~ty xs =

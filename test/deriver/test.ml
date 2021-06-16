@@ -435,6 +435,10 @@ let test_variant () =
 
           let arb = arb ()
         end];
+      [%stri
+        let arb_t' =
+          (QCheck.frequency [ (1, QCheck.always `B); (1, arb) ]
+            : t' QCheck.arbitrary)];
     ]
   in
   let actual =
@@ -443,6 +447,7 @@ let test_variant () =
          [
            [%stri type t = [ `A | `B of int | `C of string ]];
            [%stri type t = [ `A | `B of int | `C of string | `D of t ]];
+           [%stri type t' = [ `B | t ]];
          ]
   in
   check_eq ~expected ~actual "deriving variant"

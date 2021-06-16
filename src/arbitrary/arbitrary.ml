@@ -83,8 +83,7 @@ and is_recursive_core_type ~loc ~ty ct =
 
 and is_recursive_row_field ~loc ~ty rw =
   match rw.prf_desc with
-  | Rinherit _ ->
-      Error.case_unsupported ~loc ~case:"Rinherit inside of row_field" ()
+  | Rinherit _ -> false
   | Rtag (_, _, cts) -> List.exists (is_recursive_core_type ~loc ~ty) cts
 
 and is_recursive_row_fields ~loc ~ty rws =
@@ -136,11 +135,10 @@ and from_arrow ~loc ?tree_types ?rec_types ~ty (left, right) =
 and from_ptyp_variant ~loc ?tree_types ?rec_types ~ty (rws, _, _) =
   (* Transforms a row_field to the pair (variant name, generators) *)
   let to_expr f rw =
+    let w = Attributes.weight rw.prf_attributes in
     match rw.prf_desc with
-    | Rtag ({ txt; _ }, _, cts) ->
-        (txt, Attributes.weight rw.prf_attributes, List.map f cts)
-    | _ -> assert false
-    (* If we get here, an exception should already have been raised *)
+    | Rtag ({ txt; _ }, _, cts) -> `RTag (txt, w, List.map f cts)
+    | Rinherit ct -> `RInh (w, f ct)
   in
 
   (* Standart transformation from core_type to generators *)
