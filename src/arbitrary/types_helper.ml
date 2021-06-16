@@ -35,6 +35,10 @@ module PP = Common.Pp
 
 let name s = match s with "t" -> "arb" | s -> Printf.sprintf "arb_%s" s
 
+let bytes loc =
+  [%expr
+    QCheck.map (fun n -> Bytes.create n) QCheck.(0 -- Sys.max_string_length)]
+
 module Primitive = struct
   let from_string ~loc ?tree_types ?rec_types = function
     | "int" -> [%expr QCheck.int]
@@ -47,6 +51,7 @@ module Primitive = struct
     | "list" -> [%expr QCheck.list]
     | "int64" -> [%expr QCheck.int64]
     | "int32" -> [%expr QCheck.int32]
+    | "bytes" -> bytes loc
     | s ->
         let arb = E.pexp_lident ~loc @@ name s in
 
@@ -76,11 +81,7 @@ let from_longident ~loc ?tree_types ?rec_types = function
       match PP.longident_to_str x with
       | "Int64.t" -> [%expr QCheck.int64]
       | "Int32.t" -> [%expr QCheck.int32]
-      | "Bytes.t" ->
-          [%expr
-            QCheck.map
-              (fun n -> Bytes.create n)
-              QCheck.(0 -- Sys.max_string_length)]
+      | "Bytes.t" -> bytes loc
       | _ -> E.pexp_ident ~loc @@ H.mk_loc ~loc @@ Ldot (lg, name s))
   | _ ->
       Error.case_unsupported
