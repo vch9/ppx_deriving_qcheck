@@ -231,8 +231,8 @@ let from_type_declaration ~loc ?rec_types td =
   let type_kind = from_type_kind ~loc ?rec_types ~ty td.ptype_kind in
   let body =
     match (td.ptype_manifest, type_kind) with
-    | (Some ct, _) -> from_core_type ~loc ?rec_types ~ty ct
     | (_, Some x) -> x
+    | (Some ct, _) -> from_core_type ~loc ?rec_types ~ty ct
     | _ ->
         Error.location_error
           ~loc

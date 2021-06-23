@@ -264,7 +264,10 @@ let test_equal () =
         let arb =
           QCheck.frequency
             [ (1, QCheck.always A); (1, QCheck.always B); (1, QCheck.always C) ]];
-      [%stri let arb_t' = arb];
+      [%stri
+        let arb_t' =
+          QCheck.frequency
+            [ (1, QCheck.always A); (1, QCheck.always B); (1, QCheck.always C) ]];
     ]
   in
   let actual =
