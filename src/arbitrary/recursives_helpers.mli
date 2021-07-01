@@ -22,25 +22,27 @@
 (* DEALINGS IN THE SOFTWARE.                                                 *)
 (*                                                                           *)
 (*****************************************************************************)
-
 open Ppxlib
 
-(* TODO:
+type ty = string
 
-   - For now my function returned a single structure_item (that is actually a
-   include struct with a structure inside. But we can now return a structure now
- *)
+(** [is_recursiverow_field ty rw] traverses [rw] looking for [ty] *)
+val is_recursive_row_field : loc:location -> ty -> row_field -> bool
 
-let derive_arbitrary ~loc xs : structure =
-  match xs with
-  | (_, [ x ]) -> [ Arbitrary.from_type_declaration ~loc x ]
-  | (_, xs) -> [ Arbitrary.from_type_declarations ~loc xs ]
+(** [is_recursiverow_fields ty rws] traverses [rws] looking for [ty] *)
+val is_recursive_row_fields : loc:location -> ty -> row_field list -> bool
 
-let create_arbitrary ~ctxt (decls : rec_flag * type_declaration list) :
-    structure =
-  let loc = Expansion_context.Deriver.derived_item_loc ctxt in
-  derive_arbitrary ~loc decls
+(** [is_recursive_constructor_declaration ty constr_decl] traverses [constr_decl]
+    looking for [ty] *)
+val is_recursive_constructor_declaration :
+  loc:location -> ty -> constructor_declaration -> bool
 
-let arb_generator = Deriving.Generator.V2.make_noarg create_arbitrary
+(** [is_recursive_type_declaration td] does a tree traversal of [td]
+    and returns true if the type inside [td] is self recursive. *)
+val is_recursive_type_declaration : ?loc:location -> type_declaration -> bool
 
-let _ = Deriving.add "arb" ~str_type_decl:arb_generator
+(** [get_recursives_types_declarations tds] returns the sub-list of
+    type_declaration inside [tds] where {!is_recursive_type_declaration} returns
+    true *)
+val get_recursives_type_declarations :
+  ?loc:location -> type_declaration list -> ty list

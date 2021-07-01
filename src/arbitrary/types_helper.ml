@@ -35,12 +35,13 @@ module PP = Common.Pp
 
 let name s = match s with "t" -> "arb" | s -> Printf.sprintf "arb_%s" s
 
+(* TODO: that generator is not perfect *)
 let bytes loc =
   [%expr
     QCheck.map (fun n -> Bytes.create n) QCheck.(0 -- Sys.max_string_length)]
 
 module Primitive = struct
-  let from_string ~loc ?tree_types ?rec_types = function
+  let from_string ~loc ~recursives_types ~mutual_types = function
     | "int" -> [%expr QCheck.int]
     | "string" -> [%expr QCheck.string]
     | "char" -> [%expr QCheck.char]
@@ -54,29 +55,28 @@ module Primitive = struct
     | "bytes" -> bytes loc
     | s ->
         let arb = E.pexp_lident ~loc @@ name s in
-
         let arb_opt =
-          match (tree_types, rec_types) with
-          | (Some xs, _) when List.mem s xs ->
+          match (recursives_types, mutual_types) with
+          | (xs, _) when List.mem s xs ->
               Some
                 (E.pexp_apply
                    ~loc
                    ~f:(E.pexp_lident ~loc @@ name s ^ "'")
                    ~args:[ (Nolabel, [%expr n - 1]) ]
                    ())
-          | (_, Some xs) when List.mem s xs ->
+          | (_, xs) when List.mem s xs ->
               Some (E.pexp_apply ~loc ~f:arb ~args:[ (Nolabel, [%expr ()]) ] ())
           | _ -> None
         in
-        Option.fold ~none:arb ~some:(fun x -> x) arb_opt
+        Option.value arb_opt ~default:arb
 end
 
 let constr_type ~loc ~f ~args () =
   let args = List.map (fun x -> (Nolabel, x)) args in
   E.pexp_apply ~loc ~f ~args ()
 
-let from_longident ~loc ?tree_types ?rec_types = function
-  | Lident s -> Primitive.from_string ~loc ?tree_types ?rec_types s
+let from_longident ~loc ~recursives_types ~mutual_types = function
+  | Lident s -> Primitive.from_string ~loc ~recursives_types ~mutual_types s
   | Ldot (lg, s) as x -> (
       match PP.longident_to_str x with
       | "Int64.t" -> [%expr QCheck.int64]
@@ -186,12 +186,11 @@ let rec curry_args ~loc args body =
   | [] -> body
   | x :: xs -> [%expr fun [%p x] -> [%e curry_args ~loc xs body]]
 
-let gen ~loc ~rec_flags ~args ~ty ~body () =
+let gen ~loc ~is_rec ~args ~ty body =
   let body = curry_args ~loc args body in
   let pat_name = P.ppat_var ~loc (name ty) in
-  let ty_in_recs = List.mem ty rec_flags in
 
-  if not ty_in_recs then [%stri let [%p pat_name] = [%e body]]
+  if not is_rec then [%stri let [%p pat_name] = [%e body]]
   else
     let name' = name ty ^ "'" in
     let pat_name' = P.ppat_var ~loc name' in

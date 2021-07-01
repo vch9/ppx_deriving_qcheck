@@ -27,113 +27,70 @@
 
 open Ppxlib
 
-(** Transform a core_type into a QCheck.arbitrary
+type ty
 
-    When the tree_types contains types elements, that means they need to
-    be an application of a generator
+type env = {
+  ty : ty;  (** current type under translation *)
+  mutual_types : ty list;  (** list of mutual types for the current type *)
+  recursives_types : ty list;
+      (** list of recursives types, when mutual_types = []
+        the only type that might be recursive is [ty] *)
+}
 
-    A regular type would be translated to
-    {[ fun s -> gen_s ]}
+(** [from_core_type loc env ct] transforms [ct] into a QCheck.arbitrary
 
-    Meanwhile a recursive type
-    {[ fun s -> gen_s (n - 1) ]}
-    Recursives types contains only one argument: the fuel. It is always
-    called n
-
-    When the rec_types contains types elements, that means they need to
-    be wrapped with an additional argument ()
-
-    The expression:
+    We distinguish two cases:
+    - A specific arbitrary is passed throught attribute:
     {[
-    let rec gen_expr = gen_expr' 5
-    and gen_expr' = function
-      | ..
-      | ..
-    and gen_value = gen_expr
+    type t =
+    | Day of int [@arb QCheck.(map (fun x -> Day x) (0--31))] 
+    | Month of int
+    | Year of int
+    [@@deriving arb]
     ]}
+    - The arbitrary is derived from the core_type *)
+val from_core_type : loc:location -> env:env -> core_type -> expression
 
-    is rejected because right-hand side of a 'let rec' definition doesn't
-    accept that kind of expression. The hack is here is to change the signatures
-    with an additional argument
+(** [from_arrow loc env (left, right)] transform a function type to
+    a QCheck.arbitrary.
 
-    {[
-    let rec gen_expr () = gen_expr' 5
-    and gen_expr' = function
-      | ..
-      | ..
-    and gen_value = gen_expr ()
-    ]}
-*)
-val from_core_type :
-  loc:location ->
-  ?tree_types:string list ->
-  ?rec_types:string list ->
-  ty:string ->
-  core_type ->
-  expression
+    TODO: this should be more documented *)
+val from_arrow : loc:location -> env:env -> core_type * core_type -> expression
 
-(**
-   [from_core_type_weighted loc ty ct] is a variant of {!from_core_type} with a weight
+(** [from_ptyp_variant loc env variant] create a QCheck.arbitrary from the
+    body of a Ptyp_variant inside [variant] 
 
-   {[
-   type t =
-   | A
-   | B
-   | C
-   [@@deriving arb]
+    TODO: comment that function, it's really similar to a constructor declaration
+    list. *)
+val from_ptyp_variant : loc:location -> env:env -> row_field list -> expression
 
-   (* Original from_core_type would produce: *)
-
-   let arb = QCheck.(frequency [(1, always A); (1, always B); (1, always C)]
-
-   type t =
-   | A [@weight 5]
-   | B [@weight 6]
-   | C
-   [@@deriving arb]
-
-   (* from_core_type_weighted will produce *)
-   let arb = QCheck.(frequency [(5, always A); (6, always B); (1, always C)])
-   ]}
- *)
-val from_core_type_weighted :
-  loc:location ->
-  ?tree_types:string list ->
-  ?rec_types:string list ->
-  ty:string ->
-  core_type ->
-  expression * expression
-
-(** Transform a type kind into a QCheck.arbitrary
-    
-    - [X] type kind is a record, we use [from_record]
-    - [X] type kind is a tuple, we use [from_record] *)
-val from_type_kind :
-  loc:location ->
-  ?rec_types:string list ->
-  ty:string ->
-  type_kind ->
-  expression option
+(** [from_type_kind loc env type_kind] creates a QCheck.arbitrary from
+    the type description inside type_kind
+        
+    - [type kind] is a record, we use {!from_record}
+    - [type kind] is a variant, we use {!from_variant}
+    - Otherwise we return None because the arbitrary could not be derived. *)
+val from_type_kind : loc:location -> env:env -> type_kind -> expression option
 
 (** Transform a record into a record QCheck.arbitrary *)
+
+(** [from_record loc env label_decls] create a QCheck.arbitrary using
+    the record's description inside [label_decls]
+
+    For each label_declaration, we create an arbitrary as an expression.
+    These arbitraries are passed to {!Types_helper.record}. *)
 val from_record :
-  loc:location ->
-  ?rec_types:string list ->
-  ty:string ->
-  label_declaration list ->
-  expression
+  loc:location -> env:env -> label_declaration list -> expression
 
-(** Transform a tuple into a tuple QCheck.arbitrary *)
-val from_tuple :
-  loc:location ->
-  ?rec_types:string list ->
-  ty:string ->
-  core_type list ->
-  expression
+(** [from_tuple loc env cts] translate every core_type inside [cts] and
+    build a tuple QCheck.arbitrary using {!Types_helper.tuple} *)
+val from_tuple : loc:location -> env:env -> core_type list -> expression
 
-(** Transform a Ptype_variant into a 'a QCheck.arbitrary
+(** [from_variant loc env constrs] create a QCheck.arbitrary for the constructors
+    in [constrs].
 
-    - [ ] the type is self recursive
+    We distinguish two cases:
+    - The type is self recursive
       {[
       type tree = Leaf | Node of int * tree * tree
       ]}
@@ -148,30 +105,60 @@ val from_tuple :
 
       We just have to chose one of the constructors built using
       {!from_constructor_decl}. *)
-val from_variant :
-  loc:location ->
-  ?rec_types:string list ->
-  ty:string ->
-  constructor_declaration list ->
-  expression
 
-(** [from_constructor_decl loc ty cd] returns the pair (weight option * arbitrary)
+val from_variant :
+  loc:location -> env:env -> constructor_declaration list -> expression
+
+(** [from_constructor_decl loc env cd] returns the pair (weight option * arbitrary)
     for [cd].
 
-    weight is the optionak frequency of the arbitrary in a {[QCheck.frequency]} as
+    Weight is the optional frequency of the arbitrary in a {[QCheck.frequency]} as
     constructor declaration might often be inside a list of declaration *)
 val from_constructor_decl :
   loc:location ->
-  ?tree_types:string list ->
-  ?rec_types:string list ->
-  ty:string ->
+  env:env ->
   constructor_declaration ->
   expression option * expression
 
-(** Transform a type declaration into a 'a QCheck.arbitrary *)
-val from_type_declaration :
-  loc:location -> ?rec_types:string list -> type_declaration -> structure_item
+(** [from_type_declaration loc env td] translate a type_declaration [td] into
+    the according QCheck.arbitrary
 
-(** Transform recursive type declarations into multiple QCheck.arbitrary *)
-val from_type_declaration_rec :
+    {[
+    type t = (* type_declaration *)
+    [@@deriving arb]
+
+    (* ==> *)
+
+    let arb : t QCheck.arbitrary = (* t arbitrary *)
+    ]}
+
+    [env] can either be passed from {!from_type_declarations} with additionals
+    information. Otherwise, [from_type_declaration] will build it's own
+    environment. *)
+val from_type_declaration :
+  loc:location -> ?env:env -> type_declaration -> structure_item
+
+(** [from_type_declarations loc tds] translate every type_declaration in [tds]
+    using {!from_type_declaration}.
+
+    List of type_declaration comes from a mutual recursive type:
+    {[
+    type expr =
+    | If of expr * expr * expr
+    | Assign of char * expr
+    | Value of value
+
+    and value =
+    | Int of int
+    | Bool of bool [@@deriving arb]
+    
+    (* ==> *)
+
+    let arb_expr () = (* expr arbitrary *)
+    and arb_expr = arb_expr ()
+    and arb_value () = (* value arbitrary *)
+    and arb_value = arb_value ()
+    ]}
+*)
+val from_type_declarations :
   loc:location -> type_declaration list -> structure_item

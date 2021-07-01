@@ -32,24 +32,27 @@ val name : string -> string
 
 (** Module representing OCaml primitives types supported *)
 module Primitive : sig
-  (** Convert string name of type into QCheck arbitrary
+  (** [from_string loc recursives_types mutual_types s] tranforms [s] into
+      a QCheck.arbitrary
 
-      rec_types cover the special case where the generator is a recursive
-      function
-
-      tree_types cover the special case where the generator is a self recursive
-      function*)
+      If [s] is present inside [recursives_types]
+        -> arb_s (n - 1)
+      Else if [s] is present inside [mutual_types]
+        -> arb_s ()
+      Else
+        -> arb_s *)
   val from_string :
     loc:location ->
-    ?tree_types:string list ->
-    ?rec_types:string list ->
+    recursives_types:string list ->
+    mutual_types:string list ->
     string ->
     expression
 end
 
-(** Convert an applicated parametrizable type into a QCheck arbitrary 
+(** [constr_type loc f args ()] transforms an applicated parametrizable type
+    into a QCheck arbitrary.
 
-    In this example, the type is an parametrizable list applicated to string:
+    In that example, string is a parametrizable type applied on list 
     {[
     type t = string list [@@gen]
 
@@ -59,23 +62,18 @@ end
 val constr_type :
   loc:location -> f:expression -> args:expression list -> unit -> expression
 
-(** Transform a longident into a QCheck.arbitrary
+(** [from_longident loc recursives_types mutual_types lg] transforms [lg]
+    into a QCheck.arbitrary
 
     Multiples cases:
-    - [X] the type is a identifier, either from a Primitive type or local scope
-    - [X] the type comes from an outside module, we require a generator inside that
+    - The type is a identifier we use {!from_string}
+    - The type comes from an outside module, we require a generator inside that
     outside module
-    - [ ] the type is an application, can that type happens ?
-
-    rec_types cover the special case where the generator is a recursive
-    function
-
-    tree_types cover the special case where the generator is a self recursive
-    function *)
+    - The type is an application, we raise an exception *)
 val from_longident :
   loc:location ->
-  ?tree_types:string list ->
-  ?rec_types:string list ->
+  recursives_types:string list ->
+  mutual_types:string list ->
   longident ->
   expression
 
@@ -87,86 +85,59 @@ val from_longident :
 val nest_gens :
   loc:location -> expression list -> expression * string list * pattern
 
-(** Record auxiliar function, it extracts the pattern for a constructor application,
-    the list of generators needed and the record expression
+(** [record' loc gens label_decls] is an auxiliar function of {!record}.
+    It extracts the pattern and according expression for [gens], also extracts
+    the record's construction expression.
     
     type t = {left : int ; right = string }
     
-    record' [int; string] [ left -> int ; right -> string ] =>
-      - pattern : (x, y)
+    record' [QCheck.int; QCheck.string] [ left -> int ; right -> string ] =>
+      - pattern : (arb_0, arb_1)
       - generators : pair QCheck.int QCheck.string
-      - expression : { left = x ; right = string }
-
-    This function has to be extracted from [record] because when trying to build
-    a constructor using record, this expression needs the direct
-    declaration of the record.
-
-    Example
-    {[
-    type t = A of { something : int }
-    
-    let gen_t =
-      QCheck.map (fun x -> A { something = x }) QCheck.int
-    ]}
-
-    In order to build such a QCheck.arbitrary we need the pattern, generators
-    and record *)
+      - expression : { left = arb_0 ; right = arb_1 } *)
 val record' :
   loc:location ->
   gens:expression list ->
   label_declaration list ->
   pattern * expression * expression
 
-(** Convert generators and labels declarations in a application of a record type
+(** [record loc gens label_decls] convert [gens] and [label_decls] in a application
+    of a record type using {!QCheck.map}.
 
     Example:
     {[
     type t = { left : int ; right : string } [@@gen]
 
     let gen_t =
-      QCheck.map (fun (x,y) -> { left = x ; right = y }) (QCheck.pair QCheck.int QCheck.string)
+      QCheck.map (fun (x,y) -> { left = x ; right = y })
+      (QCheck.pair QCheck.int QCheck.string)
     ]}
  *)
 val record :
   loc:location -> gens:expression list -> label_declaration list -> expression
 
-(** Tuple auxiliar function, it extracts the pattern for a constructor application,
-    the list of generators needed and the record expression
+(** [tuple' loc arbs ] is a {!tuple} auxiliar function, it extracts the pattern
+    for a constructor application, the list of generators needed and the record expression
     
     type t = int * string
     
-    record' [int; string] =>
-      - pattern : (x, y)
+    tuple' [int; string] =>
+      - pattern : (arb_0, arb_1)
       - generators : pair QCheck.int QCheck.string
-      - expression : (int * string)
-
-    This function has to be extracted from [tuple] because when trying to build
-    a constructor using tuple, this expression needs the direct
-    declaration of the record.
-    
-    Example
-    {[
-    type t = A of int * string
-    
-    let gen_t =
-      QCheck.map (fun (x,y) -> A (int, string) ) QCheck.(pair int string)
-    ]}
-
-    In order to build such a QCheck.arbitrary we need the pattern, generators
-    and record *)
+      - expression : (arb_0 * arb_1) *)
 val tuple' :
   loc:location -> expression list -> pattern * expression * expression
 
-(** Convert generators in a application of a tuple
-    
+(** [tuple loc arbs] converts [arbs] in a application of a tuple
+
     Example:
     {[
     type t = int * int * int
-    
+
     let gen_t =
-      QCheck.map (fun (x,y,z) -> (x,y,z)) (QCheck.triple int int int)
-    ]}
-*)
+      QCheck.map (fun (x,y,z) -> (x,y,z))
+      (QCheck.triple int int int)
+    ]} *)
 val tuple : loc:location -> expression list -> expression
 
 (** [constructors loc xs] convert a list of (weight option * constructor) into a single
@@ -190,7 +161,9 @@ val tuple : loc:location -> expression list -> expression
 val constructors :
   loc:location -> (expression option * expression) list -> expression
 
-(** Convert a constructor name into an expression constructor QCheck.arbitrary
+(**  TODO: ocamldoc that comment
+     
+    Convert a constructor name into an expression constructor QCheck.arbitrary
 
     Example:
     {[
@@ -225,17 +198,18 @@ val constructor :
 val tree' :
   loc:location -> leaves:expression -> nodes:expression -> unit -> expression
 
-(** Convert a tree type like into a recursive generator expression
+(** [tree loc leaves nodes ()] transforms a tree type like into a recursive
+    arbitrary expression
 
-    The recursive generator uses a fuel, we could imagine that in future work
+    The recursive arbitrary uses a fuel, we could imagine that in future work
     the fuel would be provided by the user.
 
     Example:
     {[
     type t = Tree | Node of int * leaf * leaf
-    [@@gen]
+    [@@deriving arb]
 
-    let rec gen_tree fuel =
+    let rec arb_tree fuel =
       let open QCheck in
       match fuel with
       | 0 -> frequency [(1, always Leaf)]
@@ -244,12 +218,12 @@ val tree' :
           [
             (1, always Leaf) ;
             (1, map
-              (fun (gen_0, (gen_1, gen_2)) -> Node (gen_0, gen_1, gen_2))
+              (fun (arb_0, (arb_1, arb_2)) -> Node (arb_0, arb_1, arb_2))
               (pair int
-                 (pair (gen_tree (n - 1)) (gen_tree (n - 1)))))
+                 (pair (arb_tree (n - 1)) (arb_tree (n - 1)))))
           ]
 
-    let gen_tree = gen_tree 5
+    let arb_tree = arb_tree 5
     ]}
  *)
 val tree :
@@ -276,19 +250,33 @@ val variants :
   list ->
   expression
 
-(** Create a QCheck.arbitrary using args name and body
+(** [gen loc is_rec args ty body] create a QCheck.arbitrary for [ty]
 
-    let name args = body
+    When [is_rec] is false we produce the following structure_item:
+    {[ let arb_ty args = body ]}
 
-    if there is a rec flag for the type, we add the recursive flag:
-    let rec name args = body *)
+    The specific case where [is_rec] is true, the generator is self_recursive
+    and we produce the following expression
+
+    {[
+    let arb_ty () = arb_ty' 5
+    and arb_ty' fuel =
+      match fuel with
+      | 0 -> (* leaves *)
+      | n -> (* recursives calls *)
+    and arb_ty = arb_ty ()
+    ]}
+
+    (TODO: I did not test self recursive type with parameters inside args)
+
+    (TODO: name gen is misleading, for now we produce an arbitrary but
+    this will be later on transformed into a Gen.t) *)
 val gen :
   loc:location ->
-  rec_flags:string list ->
+  is_rec:bool ->
   args:pattern list ->
   ty:string ->
-  body:expression ->
-  unit ->
+  expression ->
   structure_item
 
 val gens :
