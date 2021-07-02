@@ -62,7 +62,7 @@ let is_rec env = List.mem env.ty env.recursives_types
 let extract_args ~loc params =
   let to_pat (ct, _) =
     match ct.ptyp_desc with
-    | Ptyp_var s -> P.ppat_var ~loc @@ T.name ("arb_" ^ s)
+    | Ptyp_var s -> P.ppat_var ~loc @@ T.name s
     | _ ->
         Error.case_unsupported
           ~loc
