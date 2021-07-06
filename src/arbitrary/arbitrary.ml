@@ -91,7 +91,7 @@ let rec from_core_type ~loc ~env ct =
           T.constr_type ~loc ~f ~args ()
       | Ptyp_tuple xs -> from_tuple ~loc ~env xs
       | Ptyp_var s ->
-          (* TODO: they should be optional types *)
+          (* TODO: they should be optional parameters *)
           T.Primitive.from_string ~loc ~recursives_types:[] ~mutual_types:[] s
       | Ptyp_variant (rws, _, _) -> from_ptyp_variant ~loc ~env rws
       | Ptyp_arrow (_, left, right) -> from_arrow ~loc ~env (left, right)
@@ -205,7 +205,6 @@ let from_type_declarations ~loc xs =
   let tys = List.map (fun x -> x.ptype_name.txt) xs in
 
   let env =
-    (* recursives_types must be found at the point *)
     {
       ty = "";
       mutual_types = tys;
