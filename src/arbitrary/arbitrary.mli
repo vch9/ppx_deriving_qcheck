@@ -27,7 +27,7 @@
 
 open Ppxlib
 
-type ty
+type ty = string
 
 type env = {
   ty : ty;  (** current type under translation *)
