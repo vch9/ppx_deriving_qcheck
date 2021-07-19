@@ -36,6 +36,8 @@ type ty = string
 
 type env = { ty : ty; mutual_types : ty list; recursives_types : ty list }
 
+let env ty = { ty; mutual_types = []; recursives_types = [] }
+
 (** [default_env env td] create a default environment from [td] if [env] is absent *)
 let default_env env td =
   Option.value

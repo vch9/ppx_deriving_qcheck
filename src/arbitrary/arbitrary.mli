@@ -37,6 +37,9 @@ type env = {
         the only type that might be recursive is [ty] *)
 }
 
+(** [env ty] create default environment with [ty] inside] *)
+val env : ty -> env
+
 (** [from_core_type loc env ct] transforms [ct] into a QCheck.arbitrary
 
     We distinguish two cases:
