@@ -37,7 +37,7 @@ type env = {
         the only type that might be recursive is [ty] *)
 }
 
-(** [env ty] create default environment with [ty] inside] *)
+(** [env ty] creates default environment with [ty] inside. *)
 val env : ty -> env
 
 (** [from_core_type loc env ct] transforms [ct] into a QCheck.arbitrary
@@ -101,21 +101,20 @@ val from_tuple : loc:location -> env:env -> core_type list -> expression
       The distinction betweens recursive nodes and leaves must be considered
       in order to avoid a infinite loop on a recursive type
 
-    - [X] the type is a list of constructor
+    - The type is a list of constructor
       {[
       type color = Green | Blue | Red | Any of int
       ]}
 
       We just have to chose one of the constructors built using
       {!from_constructor_decl}. *)
-
 val from_variant :
   loc:location -> env:env -> constructor_declaration list -> expression
 
 (** [from_constructor_decl loc env cd] returns the pair (weight option * arbitrary)
     for [cd].
 
-    Weight is the optional frequency of the arbitrary in a {[QCheck.frequency]} as
+    Weight is the optional frequency of the arbitrary in a [QCheck.frequency] as
     constructor declaration might often be inside a list of declaration *)
 val from_constructor_decl :
   loc:location ->
