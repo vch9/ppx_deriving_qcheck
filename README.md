@@ -1,5 +1,8 @@
 # ppx_deriving_qcheck
 
+## Documentation
+The documentation can be found https://vch9.github.io/ppx_deriving_qcheck/[here].
+
 ## Arbitrary
 Derive `QCheck.arbitrary` on a type declaration
 
