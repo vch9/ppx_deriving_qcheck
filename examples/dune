@@ -1,0 +1,3 @@
+(test
+ (name tree)
+ (preprocess (pps ppx_deriving_qcheck)))
