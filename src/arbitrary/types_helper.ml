@@ -61,7 +61,7 @@ module Primitive = struct
               Some
                 (E.pexp_apply
                    ~loc
-                   ~f:(E.pexp_lident ~loc @@ name s ^ "'")
+                   ~f:(E.pexp_lident ~loc @@ name s ^ "_sized")
                    ~args:[ (Nolabel, [%expr n - 1]) ]
                    ())
           | (_, xs) when List.mem s xs ->
@@ -192,7 +192,7 @@ let gen ~loc ~is_rec ~args ~ty body =
 
   if not is_rec then [%stri let [%p pat_name] = [%e body]]
   else
-    let name' = name ty ^ "'" in
+    let name' = name ty ^ "_sized" in
     let pat_name' = P.ppat_var ~loc name' in
     let f = E.pexp_lident ~loc name' in
     let args = [ (Nolabel, [%expr 5]) ] in
@@ -213,8 +213,8 @@ let gen ~loc ~is_rec ~args ~ty body =
 
     {[
     include struct
-      let rec gen_something () = gen_something' 5
-      and gen_something' = ...
+      let rec gen_something () = gen_something_sized 5
+      and gen_something_size = ...
 
       let gen_something = gen_something ()
     end
@@ -258,13 +258,13 @@ let stri_self_rec stri =
     {[ let f () = .. ]}
 
     This function changes the signature when [f] does not contains
-    the suffix "'". *)
+    the suffix "_sized". *)
 let change_sig ~loc (pat, expr) =
   let name = P.extract_pat_name_exn ~loc pat in
-  let n = String.length name - 1 in
-  let c = String.get name n in
+  let l = String.split_on_char '_' name in
+  let x = List.nth l (List.length l - 1) in
 
-  if c = '\'' then (pat, expr)
+  if x = "sized" then (pat, expr)
   else
     match expr with
     (* The expression already contains the fun () -> _ *)

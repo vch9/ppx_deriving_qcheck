@@ -415,9 +415,9 @@ let test_variant () =
             : t QCheck.arbitrary)];
       [%stri
         include struct
-          let rec arb () = arb' 5
+          let rec arb () = arb_sized 5
 
-          and arb' = function
+          and arb_sized = function
             | 0 ->
                 (QCheck.frequency
                    [
@@ -432,7 +432,7 @@ let test_variant () =
                      (1, QCheck.always `A);
                      (1, QCheck.map (fun arb_0 -> `B arb_0) QCheck.int);
                      (1, QCheck.map (fun arb_0 -> `C arb_0) QCheck.string);
-                     (1, QCheck.map (fun arb_0 -> `D arb_0) (arb' (n - 1)));
+                     (1, QCheck.map (fun arb_0 -> `D arb_0) (arb_sized (n - 1)));
                    ]
                   : t QCheck.arbitrary)
 
@@ -460,9 +460,9 @@ let test_tree () =
     [
       [%stri
         include struct
-          let rec arb_tree () = arb_tree' 5
+          let rec arb_tree () = arb_tree_sized 5
 
-          and arb_tree' = function
+          and arb_tree_sized = function
             | 0 -> QCheck.frequency [ (1, QCheck.always Leaf) ]
             | n ->
                 QCheck.frequency
@@ -474,17 +474,18 @@ let test_tree () =
                           Node (arb_0, arb_1, arb_2))
                         (QCheck.pair
                            QCheck.int
-                           (QCheck.pair (arb_tree' (n - 1)) (arb_tree' (n - 1))))
-                    );
+                           (QCheck.pair
+                              (arb_tree_sized (n - 1))
+                              (arb_tree_sized (n - 1)))) );
                   ]
 
           let arb_tree = arb_tree ()
         end];
       [%stri
         include struct
-          let rec arb_expr () = arb_expr' 5
+          let rec arb_expr () = arb_expr_sized 5
 
-          and arb_expr' = function
+          and arb_expr_sized = function
             | 0 ->
                 QCheck.frequency
                   [ (1, QCheck.map (fun arb_0 -> Value arb_0) QCheck.int) ]
@@ -497,17 +498,22 @@ let test_tree () =
                         (fun (arb_0, (arb_1, arb_2)) ->
                           If (arb_0, arb_1, arb_2))
                         (QCheck.pair
-                           (arb_expr' (n - 1))
-                           (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))))
-                    );
+                           (arb_expr_sized (n - 1))
+                           (QCheck.pair
+                              (arb_expr_sized (n - 1))
+                              (arb_expr_sized (n - 1)))) );
                     ( 1,
                       QCheck.map
                         (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
-                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
+                        (QCheck.pair
+                           (arb_expr_sized (n - 1))
+                           (arb_expr_sized (n - 1))) );
                     ( 1,
                       QCheck.map
                         (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
-                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
+                        (QCheck.pair
+                           (arb_expr_sized (n - 1))
+                           (arb_expr_sized (n - 1))) );
                   ]
 
           let arb_expr = arb_expr ()
@@ -534,9 +540,9 @@ let test_recursive () =
     [
       [%stri
         include struct
-          let rec arb_expr () = arb_expr' 5
+          let rec arb_expr () = arb_expr_sized 5
 
-          and arb_expr' = function
+          and arb_expr_sized = function
             | 0 ->
                 QCheck.frequency
                   [ (1, QCheck.map (fun arb_0 -> Value arb_0) (arb_value ())) ]
@@ -549,17 +555,22 @@ let test_recursive () =
                         (fun (arb_0, (arb_1, arb_2)) ->
                           If (arb_0, arb_1, arb_2))
                         (QCheck.pair
-                           (arb_expr' (n - 1))
-                           (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))))
-                    );
+                           (arb_expr_sized (n - 1))
+                           (QCheck.pair
+                              (arb_expr_sized (n - 1))
+                              (arb_expr_sized (n - 1)))) );
                     ( 1,
                       QCheck.map
                         (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
-                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
+                        (QCheck.pair
+                           (arb_expr_sized (n - 1))
+                           (arb_expr_sized (n - 1))) );
                     ( 1,
                       QCheck.map
                         (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
-                        (QCheck.pair (arb_expr' (n - 1)) (arb_expr' (n - 1))) );
+                        (QCheck.pair
+                           (arb_expr_sized (n - 1))
+                           (arb_expr_sized (n - 1))) );
                   ]
 
           and arb_value () =
