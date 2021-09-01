@@ -351,16 +351,19 @@ let test_dependencies () =
   let expected =
     [
       [%stri
-        let arb =
-          QCheck.frequency
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency
             [
-              (1, QCheck.map (fun arb_0 -> Int arb_0) SomeModule.arb);
-              ( 1,
-                QCheck.map
-                  (fun arb_0 -> Float arb_0)
-                  SomeModule.SomeOtherModule.arb );
+              (1, map (fun gen0 -> Int gen0) SomeModule.gen);
+              (1, map (fun gen0 -> Float gen0) SomeModule.SomeOtherModule.gen);
             ]];
-      [%stri let arb = gen_something];
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          gen_something];
     ]
   in
   let actual =
@@ -881,9 +884,9 @@ let () =
             test_case "deriving array" `Quick test_array;
             test_case "deriving list" `Quick test_list;
             test_case "deriving constructors" `Quick test_konstr;
+            test_case "deriving dependencies" `Quick test_dependencies;
             (* test_case "deriving alpha" `Quick test_alpha;
                * test_case "deriving equal" `Quick test_equal;
-               * test_case "deriving dependencies" `Quick test_dependencies;
                * test_case "deriving record" `Quick test_record;
                * test_case "deriving variant" `Quick test_variant;
                * test_case "deriving tree like" `Quick test_tree;
