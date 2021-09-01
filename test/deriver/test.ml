@@ -214,7 +214,7 @@ let test_tuple () =
         let gen =
           let open QCheck in
           let open Gen in
-          map (fun (gen0, gen0) -> (gen0, gen1)) (pair int int)];
+          map (fun (gen0, gen1) -> (gen0, gen1)) (pair int int)];
       [%stri
         let gen =
           let open QCheck in
@@ -234,7 +234,7 @@ let test_tuple () =
           let open QCheck in
           let open Gen in
           map
-            (fun ((gen0, gen0), (gen0, gen1, gen2)) ->
+            (fun ((gen0, gen1), (gen2, gen3, gen4)) ->
               (gen0, gen1, gen2, gen3, gen4))
             (pair (pair int int) (triple int int int))];
       [%stri
@@ -242,7 +242,7 @@ let test_tuple () =
           let open QCheck in
           let open Gen in
           map
-            (fun ((gen0, gen1, gen2), (gen0, gen1, gen2)) ->
+            (fun ((gen0, gen1, gen2), (gen3, gen4, gen5)) ->
               (gen0, gen1, gen2, gen3, gen4, gen5))
             (pair (triple int int int) (triple int int int))];
     ]
@@ -419,7 +419,7 @@ let test_konstr () =
           frequency
             [
               (1, map (fun gen0 -> Simple gen0) int);
-              (1, map (fun (gen0, gen0) -> Double (gen0, gen1)) (pair int int));
+              (1, map (fun (gen0, gen1) -> Double (gen0, gen1)) (pair int int));
               ( 1,
                 map
                   (fun (gen0, gen1, gen2) -> Triple (gen0, gen1, gen2))

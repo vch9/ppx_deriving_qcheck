@@ -81,7 +81,7 @@ module Tuple = struct
     | Pair (a, b) -> [%expr pair [%e to_gen ~loc a] [%e to_gen ~loc b]]
     | Elem a -> a
 
-  let rec to_pat ~loc t =
+  let to_pat ~loc t =
     let fresh_id =
       let id = ref 0 in
       fun () ->
@@ -90,20 +90,25 @@ module Tuple = struct
         Printf.sprintf "gen%d" x
     in
     let (module A) = Ast_builder.make loc in
-    match t with
-    | Quad (_, _, _, _) ->
-        let a = A.pvar @@ fresh_id () in
-        let b = A.pvar @@ fresh_id () in
-        let c = A.pvar @@ fresh_id () in
-        let d = A.pvar @@ fresh_id () in
-        [%pat? ([%p a], [%p b], [%p c], [%p d])]
-    | Triple (_, _, _) ->
-        let a = A.pvar @@ fresh_id () in
-        let b = A.pvar @@ fresh_id () in
-        let c = A.pvar @@ fresh_id () in
-        [%pat? ([%p a], [%p b], [%p c])]
-    | Pair (a, b) -> [%pat? ([%p to_pat ~loc a], [%p to_pat ~loc b])]
-    | Elem _ -> A.pvar @@ fresh_id ()
+    let rec aux = function
+      | Quad (_, _, _, _) ->
+          let a = A.pvar @@ fresh_id () in
+          let b = A.pvar @@ fresh_id () in
+          let c = A.pvar @@ fresh_id () in
+          let d = A.pvar @@ fresh_id () in
+          [%pat? ([%p a], [%p b], [%p c], [%p d])]
+      | Triple (_, _, _) ->
+          let a = A.pvar @@ fresh_id () in
+          let b = A.pvar @@ fresh_id () in
+          let c = A.pvar @@ fresh_id () in
+          [%pat? ([%p a], [%p b], [%p c])]
+      | Pair (a, b) ->
+          let a = aux a in
+          let b = aux b in
+          [%pat? ([%p a], [%p b])]
+      | Elem _ -> A.pvar @@ fresh_id ()
+    in
+    aux t
 end
 
 let map ~loc pat expr gen = [%expr map (fun [%p pat] -> [%e expr]) [%e gen]]
