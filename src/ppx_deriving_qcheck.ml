@@ -120,6 +120,29 @@ let tuple ~loc ?(f = fun x -> x) tys =
   let pat = Tuple.to_pat ~loc tuple in
   map ~loc pat expr gen
 
+let record ~loc ~gens ?(f = fun x -> x) xs =
+  let (module A) = Ast_builder.make loc in
+  let tuple = Tuple.from_list gens in
+  let gen = Tuple.to_gen ~loc tuple in
+  let pat = Tuple.to_pat ~loc tuple in
+  let gens =
+    List.mapi
+      (fun i _ ->
+        let s = Printf.sprintf "gen%d" i in
+        A.evar s)
+      gens
+  in
+  let fields =
+    List.map2
+      (fun { pld_name; _ } value ->
+        (A.Located.mk @@ Lident pld_name.txt, value))
+      xs
+      gens
+  in
+  let expr = A.pexp_record fields None |> f in
+
+  map ~loc pat expr gen
+
 let rec gen_from_type ~loc typ =
   Option.value
     (Attributes.arb typ)
@@ -159,8 +182,11 @@ and gen_from_variant ~loc xs =
       | Pcstr_tuple xs ->
           let tys = List.map (gen_from_type ~loc) xs in
           tuple ~loc ~f:mk_constr tys
-      | _ -> failwith "record"
+      | Pcstr_record xs ->
+          let tys = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
+          record ~loc ~f:mk_constr ~gens:tys xs
     in
+
     A.pexp_tuple [ Option.value ~default:[%expr 1] weight; gen ]
   in
 
@@ -173,6 +199,9 @@ let gen ~loc td =
   let gen =
     match td.ptype_kind with
     | Ptype_variant xs -> gen_from_variant ~loc xs
+    | Ptype_record xs ->
+        let gens = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
+        record ~loc ~gens xs
     | _ ->
         let typ = Option.get td.ptype_manifest in
         gen_from_type ~loc typ

@@ -448,24 +448,26 @@ let test_record () =
   let expected =
     [
       [%stri
-        let arb =
-          QCheck.map
-            (fun (arb_0, arb_1) -> { a = arb_0; b = arb_1 })
-            (QCheck.pair QCheck.int QCheck.string)];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          map (fun (gen0, gen1) -> { a = gen0; b = gen1 }) (pair int string)];
       [%stri
-        let arb =
-          QCheck.map
-            (fun (arb_0, arb_1) -> { a = arb_0; b = arb_1 })
-            (QCheck.pair QCheck.int QCheck.string)];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          map (fun (gen0, gen1) -> { a = gen0; b = gen1 }) (pair int string)];
       [%stri
-        let arb =
-          QCheck.frequency
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency
             [
-              (1, QCheck.map (fun arb_0 -> A arb_0) arb_t');
+              (1, map (fun gen0 -> A gen0) gen_t');
               ( 1,
-                QCheck.map
-                  (fun (arb_0, arb_1) -> B { left = arb_0; right = arb_1 })
-                  (QCheck.pair QCheck.int QCheck.int) );
+                map
+                  (fun (gen0, gen1) -> B { left = gen0; right = gen1 })
+                  (pair int int) );
             ]];
     ]
   in
@@ -885,9 +887,9 @@ let () =
             test_case "deriving list" `Quick test_list;
             test_case "deriving constructors" `Quick test_konstr;
             test_case "deriving dependencies" `Quick test_dependencies;
+            test_case "deriving record" `Quick test_record;
             (* test_case "deriving alpha" `Quick test_alpha;
                * test_case "deriving equal" `Quick test_equal;
-               * test_case "deriving record" `Quick test_record;
                * test_case "deriving variant" `Quick test_variant;
                * test_case "deriving tree like" `Quick test_tree;
                * test_case "deriving recursive" `Quick test_recursive;
