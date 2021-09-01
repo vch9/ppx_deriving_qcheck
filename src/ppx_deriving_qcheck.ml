@@ -116,25 +116,28 @@ let tuple ~loc ?(f = fun x -> x) tys =
   map ~loc pat expr gen
 
 let rec gen_from_type ~loc typ =
-  match typ with
-  | [%type: unit] -> [%expr unit]
-  | [%type: int] -> [%expr int]
-  | [%type: string] | [%type: String.t] -> [%expr string]
-  | [%type: char] -> [%expr char]
-  | [%type: bool] -> [%expr bool]
-  | [%type: float] -> [%expr float]
-  | [%type: int32] | [%type: Int32.t] -> [%expr int32]
-  | [%type: int64] | [%type: Int64.t] -> [%expr int64]
-  | [%type: [%t? typ] option] -> [%expr option [%e gen_from_type ~loc typ]]
-  | [%type: [%t? typ] list] -> [%expr list [%e gen_from_type ~loc typ]]
-  | [%type: [%t? typ] array] -> [%expr array [%e gen_from_type ~loc typ]]
-  | _ -> (
-      match typ with
-      | { ptyp_desc = Ptyp_tuple typs; _ } ->
-          let tys = List.map (gen_from_type ~loc) typs in
-          tuple ~loc tys
-      | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, []); _ } -> gen ~loc ty
-      | _ -> failwith "gen_from_type")
+  Option.value
+    (Attributes.arb typ)
+    ~default:
+      (match typ with
+      | [%type: unit] -> [%expr unit]
+      | [%type: int] -> [%expr int]
+      | [%type: string] | [%type: String.t] -> [%expr string]
+      | [%type: char] -> [%expr char]
+      | [%type: bool] -> [%expr bool]
+      | [%type: float] -> [%expr float]
+      | [%type: int32] | [%type: Int32.t] -> [%expr int32]
+      | [%type: int64] | [%type: Int64.t] -> [%expr int64]
+      | [%type: [%t? typ] option] -> [%expr option [%e gen_from_type ~loc typ]]
+      | [%type: [%t? typ] list] -> [%expr list [%e gen_from_type ~loc typ]]
+      | [%type: [%t? typ] array] -> [%expr array [%e gen_from_type ~loc typ]]
+      | _ -> (
+          match typ with
+          | { ptyp_desc = Ptyp_tuple typs; _ } ->
+              let tys = List.map (gen_from_type ~loc) typs in
+              tuple ~loc tys
+          | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, []); _ } -> gen ~loc ty
+          | _ -> failwith "gen_from_type"))
 
 and gen_from_variant ~loc xs =
   let (module A) = Ast_builder.make loc in
