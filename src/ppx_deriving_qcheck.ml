@@ -37,20 +37,6 @@ let pat ~loc s =
   let (module A) = Ast_builder.make loc in
   A.pvar s
 
-let built_in_opt ~loc = function
-  | [%type: unit] -> Some [%expr unit]
-  | [%type: int] -> Some [%expr int]
-  | [%type: string] | [%type: String.t] -> Some [%expr string]
-  | [%type: char] -> Some [%expr char]
-  | [%type: bool] -> Some [%expr bool]
-  | [%type: float] -> Some [%expr float]
-  | [%type: int32] | [%type: Int32.t] -> Some [%expr int32]
-  | [%type: int64] | [%type: Int64.t] -> Some [%expr int64]
-  (* | [%type: option] -> Some [%expr option]
-   * | [%type: list] -> Some [%expr list]
-   * | [%type: array] -> Some [%expr array] *)
-  | _ -> None
-
 module Tuple = struct
   type 'a t =
     | Pair of 'a t * 'a t
@@ -126,9 +112,19 @@ let tuple ~loc tys =
   map ~loc pat expr gen
 
 let rec gen_from_type ~loc typ =
-  match (Attributes.arb typ, built_in_opt ~loc typ) with
-  | (Some x, _) | (None, Some x) -> x
-  | (None, None) -> (
+  match typ with
+  | [%type: unit] -> [%expr unit]
+  | [%type: int] -> [%expr int]
+  | [%type: string] | [%type: String.t] -> [%expr string]
+  | [%type: char] -> [%expr char]
+  | [%type: bool] -> [%expr bool]
+  | [%type: float] -> [%expr float]
+  | [%type: int32] | [%type: Int32.t] -> [%expr int32]
+  | [%type: int64] | [%type: Int64.t] -> [%expr int64]
+  | [%type: [%t? typ] option] -> [%expr option [%e gen_from_type ~loc typ]]
+  | [%type: [%t? typ] list] -> [%expr list [%e gen_from_type ~loc typ]]
+  | [%type: [%t? typ] array] -> [%expr array [%e gen_from_type ~loc typ]]
+  | _ -> (
       match typ with
       | { ptyp_desc = Ptyp_tuple typs; _ } ->
           let tys = List.map (gen_from_type ~loc) typs in

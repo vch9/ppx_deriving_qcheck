@@ -254,49 +254,40 @@ let test_option () =
   let expected =
     [
       [%stri
-        let arb arb_a =
-          QCheck.frequency
-            [
-              (1, QCheck.always None);
-              (1, QCheck.map (fun arb_0 -> Some arb_0) arb_a);
-            ]];
-      [%stri let arb = arb_my_option QCheck.int];
-      [%stri let arb = QCheck.option QCheck.int];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          option int];
     ]
   in
-  let actual =
-    f'
-    @@ extract'
-         [
-           [%stri type 'a t = None | Some of 'a];
-           [%stri type t = int my_option];
-           [%stri type t = int option];
-         ]
+  let actual = f' @@ extract' [ [%stri type t = int option] ] in
+  check_eq ~expected ~actual "deriving option"
+
+let test_array () =
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          array int];
+    ]
   in
+  let actual = f' @@ extract' [ [%stri type t = int array] ] in
   check_eq ~expected ~actual "deriving option"
 
 let test_list () =
   let expected =
     [
-      [%stri let arb = QCheck.list QCheck.string];
       [%stri
-        let arb =
-          QCheck.frequency
-            [
-              (1, QCheck.map (fun arb_0 -> A arb_0) (QCheck.list QCheck.string));
-              (1, QCheck.map (fun arb_0 -> B arb_0) (QCheck.list QCheck.int));
-            ]];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          list string];
     ]
   in
 
-  let actual =
-    f'
-    @@ extract'
-         [
-           [%stri type t = string list];
-           [%stri type t = A of string list | B of int list];
-         ]
-  in
+  let actual = f' @@ extract' [ [%stri type t = string list] ] in
   check_eq ~expected ~actual "deriving list"
 
 let test_alpha () =
@@ -880,22 +871,23 @@ let () =
             test_case "deriving int64'" `Quick test_int64';
             (* test_case "deriving bytes" `Quick test_bytes; *)
             test_case "deriving tuple" `Quick test_tuple;
-            (* test_case "deriving option" `Quick test_option;
-             * test_case "deriving list" `Quick test_list;
-             * test_case "deriving alpha" `Quick test_alpha;
-             * test_case "deriving equal" `Quick test_equal;
-             * test_case "deriving dependencies" `Quick test_dependencies;
-             * test_case "deriving constructors" `Quick test_konstr;
-             * test_case "deriving record" `Quick test_record;
-             * test_case "deriving variant" `Quick test_variant;
-             * test_case "deriving tree like" `Quick test_tree;
-             * test_case "deriving recursive" `Quick test_recursive;
-             * test_case "deriving fun axioms" `Quick test_fun_axiom;
-             * test_case "deriving fun n" `Quick test_fun_n;
-             * test_case "deriving fun option" `Quick test_fun_option;
-             * test_case "deriving fun list" `Quick test_fun_list;
-             * test_case "deriving fun array" `Quick test_fun_array;
-             * test_case "deriving fun tuple" `Quick test_fun_tuple;
-             * test_case "deriving weight constructors" `Quick test_weight_konstrs; *)
+            test_case "deriving option" `Quick test_option;
+            test_case "deriving array" `Quick test_array;
+            test_case "deriving list" `Quick test_list;
+            (* test_case "deriving alpha" `Quick test_alpha;
+               * test_case "deriving equal" `Quick test_equal;
+               * test_case "deriving dependencies" `Quick test_dependencies;
+               * test_case "deriving constructors" `Quick test_konstr;
+               * test_case "deriving record" `Quick test_record;
+               * test_case "deriving variant" `Quick test_variant;
+               * test_case "deriving tree like" `Quick test_tree;
+               * test_case "deriving recursive" `Quick test_recursive;
+               * test_case "deriving fun axioms" `Quick test_fun_axiom;
+               * test_case "deriving fun n" `Quick test_fun_n;
+               * test_case "deriving fun option" `Quick test_fun_option;
+               * test_case "deriving fun list" `Quick test_fun_list;
+               * test_case "deriving fun array" `Quick test_fun_array;
+               * test_case "deriving fun tuple" `Quick test_fun_tuple;
+               * test_case "deriving weight constructors" `Quick test_weight_konstrs; *)
           ] );
       ])
