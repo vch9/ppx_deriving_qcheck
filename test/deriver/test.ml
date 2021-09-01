@@ -43,78 +43,158 @@ let check_eq ~expected ~actual name =
   Alcotest.(check string) name (f expected) (f actual)
 
 let test_int () =
-  let expected = [ [%stri let arb = QCheck.int] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          int];
+    ]
+  in
   let actual = f @@ extract [%stri type t = int [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving int"
 
 let test_float () =
-  let expected = [ [%stri let arb = QCheck.float] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          float];
+    ]
+  in
   let actual = f @@ extract [%stri type t = float [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving float"
 
 let test_char () =
-  let expected = [ [%stri let arb = QCheck.char] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          char];
+    ]
+  in
   let actual = f @@ extract [%stri type t = char [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving char"
 
 let test_string () =
-  let expected = [ [%stri let arb = QCheck.string] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          string];
+    ]
+  in
   let actual = f @@ extract [%stri type t = string [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving string"
 
 let test_unit () =
-  let expected = [ [%stri let arb = QCheck.unit] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          unit];
+    ]
+  in
   let actual = f @@ extract [%stri type t = unit [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving unit"
 
 let test_bool () =
-  let expected = [ [%stri let arb = QCheck.bool] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          bool];
+    ]
+  in
   let actual = f @@ extract [%stri type t = bool [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving bool"
 
 let test_int32 () =
-  let expected = [ [%stri let arb = QCheck.int32] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          int32];
+    ]
+  in
   let actual = f @@ extract [%stri type t = int32 [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving int32"
 
 let test_int32' () =
-  let expected = [ [%stri let arb = QCheck.int32] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          int32];
+    ]
+  in
   let actual = f @@ extract [%stri type t = Int32.t [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving int32'"
 
 let test_int64 () =
-  let expected = [ [%stri let arb = QCheck.int64] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          int64];
+    ]
+  in
   let actual = f @@ extract [%stri type t = int64 [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving int64"
 
 let test_int64' () =
-  let expected = [ [%stri let arb = QCheck.int64] ] in
+  let expected =
+    [
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          int64];
+    ]
+  in
   let actual = f @@ extract [%stri type t = Int64.t [@@deriving arb]] in
 
   check_eq ~expected ~actual "deriving int64'"
 
-let test_bytes () =
-  let expected =
-    [
-      [%stri
-        let arb =
-          QCheck.map
-            (fun n -> Bytes.create n)
-            QCheck.(0 -- Sys.max_string_length)];
-    ]
-  in
-  let actual = f @@ extract [%stri type t = Bytes.t [@@deriving arb]] in
-
-  check_eq ~expected ~actual "deriving int64"
+(* let test_bytes () =
+ *   let expected =
+ *     [
+ *       [%stri
+ *         let arb =
+ *           QCheck.map
+ *             (fun n -> Bytes.create n)
+ *             QCheck.(0 -- Sys.max_string_length)];
+ *     ]
+ *   in
+ *   let actual = f @@ extract [%stri type t = Bytes.t [@@deriving arb]] in
+ * 
+ *   check_eq ~expected ~actual "deriving int64" *)
 
 let test_tuple () =
   let actual =
@@ -799,7 +879,7 @@ let () =
             test_case "deriving int32'" `Quick test_int32';
             test_case "deriving int64" `Quick test_int64;
             test_case "deriving int64'" `Quick test_int64';
-            test_case "deriving bytes" `Quick test_bytes;
+            (* test_case "deriving bytes" `Quick test_bytes; *)
             test_case "deriving tuple" `Quick test_tuple;
             test_case "deriving option" `Quick test_option;
             test_case "deriving list" `Quick test_list;

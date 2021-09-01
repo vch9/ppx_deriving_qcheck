@@ -22,62 +22,22 @@
 (* DEALINGS IN THE SOFTWARE.                                                 *)
 (*                                                                           *)
 (*****************************************************************************)
-
 open Ppxlib
 
-(* TODO:
+(** [find_first_attribute xs name] returns the first attribute found in [xs]
+    named [name] *)
+let find_attribute_opt xs name =
+  List.find_opt (fun attribute -> attribute.attr_name.txt = name) xs
 
-   - For now my function returned a single structure_item (that is actually a
-   include struct with a structure inside. But we can now return a structure now
-*)
-
-let pat ~loc s =
-  let prefix = "gen" in
-  let s = match s with "t" -> prefix | s -> prefix ^ "_" ^ s in
-  let (module A) = Ast_builder.make loc in
-  A.pvar s
-
-let built_in_opt ~loc = function
-  | [%type: unit] -> Some [%expr unit]
-  | [%type: int] -> Some [%expr int]
-  | [%type: string] | [%type: String.t] -> Some [%expr string]
-  | [%type: char] -> Some [%expr char]
-  | [%type: bool] -> Some [%expr bool]
-  | [%type: float] -> Some [%expr float]
-  | [%type: int32] | [%type: Int32.t] -> Some [%expr int32]
-  | [%type: int64] | [%type: Int64.t] -> Some [%expr int64]
-  (* | [%type: option] -> Some [%expr option]
-   * | [%type: list] -> Some [%expr list]
-   * | [%type: array] -> Some [%expr array] *)
+let get_expr_payload x =
+  match x.attr_payload with
+  | PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> Some [%expr [%e e]]
   | _ -> None
 
-let gen_from_type ~loc typ =
-  match (Attributes.arb typ, built_in_opt ~loc typ) with
-  | (Some x, _) | (None, Some x) -> x
-  | (None, None) -> failwith "todo"
+let arb ct =
+  Option.fold ~none:None ~some:get_expr_payload
+  @@ find_attribute_opt ct.ptyp_attributes "arb"
 
-let gen ~loc td =
-  let pat = pat ~loc td.ptype_name.txt in
-  let gen = gen_from_type ~loc (Option.get td.ptype_manifest) in
-
-  [%stri
-    let [%p pat] =
-      let open QCheck in
-      let open Gen in
-      [%e gen]]
-
-let derive_arbitrary ~loc xs : structure =
-  match xs with
-  | (_, [ x ]) -> [gen ~loc x]
-  | (_, _xs) -> assert false
-  [@@ocamlformat "disable"]
-(* [ Arbitrary.from_type_declarations ~loc xs ] *)
-
-let create_arbitrary ~ctxt (decls : rec_flag * type_declaration list) :
-    structure =
-  let loc = Expansion_context.Deriver.derived_item_loc ctxt in
-  derive_arbitrary ~loc decls
-
-let arb_generator = Deriving.Generator.V2.make_noarg create_arbitrary
-
-let _ = Deriving.add "arb" ~str_type_decl:arb_generator
+let weight xs =
+  Option.fold ~none:None ~some:get_expr_payload
+  @@ find_attribute_opt xs "weight"

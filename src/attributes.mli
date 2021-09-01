@@ -23,61 +23,31 @@
 (*                                                                           *)
 (*****************************************************************************)
 
+(** This file handles every attributes to be found in a core_type definition *)
 open Ppxlib
 
-(* TODO:
+(** [arb loc ct] look for an attribute "arb" in [ct]
 
-   - For now my function returned a single structure_item (that is actually a
-   include struct with a structure inside. But we can now return a structure now
-*)
+    example:
+    {[
+    type t =
+    | A of int
+    | B of (int [@arb QCheck.int32])
+    ]}
 
-let pat ~loc s =
-  let prefix = "gen" in
-  let s = match s with "t" -> prefix | s -> prefix ^ "_" ^ s in
-  let (module A) = Ast_builder.make loc in
-  A.pvar s
+    It allows the user to specify which arbitrary he wants for a specific type.
+    Returns the arbitrary as an expression and returns None if no attribute
+    is present *)
+val arb : core_type -> expression option
 
-let built_in_opt ~loc = function
-  | [%type: unit] -> Some [%expr unit]
-  | [%type: int] -> Some [%expr int]
-  | [%type: string] | [%type: String.t] -> Some [%expr string]
-  | [%type: char] -> Some [%expr char]
-  | [%type: bool] -> Some [%expr bool]
-  | [%type: float] -> Some [%expr float]
-  | [%type: int32] | [%type: Int32.t] -> Some [%expr int32]
-  | [%type: int64] | [%type: Int64.t] -> Some [%expr int64]
-  (* | [%type: option] -> Some [%expr option]
-   * | [%type: list] -> Some [%expr list]
-   * | [%type: array] -> Some [%expr array] *)
-  | _ -> None
+(** [weight loc ct] look for an attribute "weight" in [ct]
 
-let gen_from_type ~loc typ =
-  match (Attributes.arb typ, built_in_opt ~loc typ) with
-  | (Some x, _) | (None, Some x) -> x
-  | (None, None) -> failwith "todo"
-
-let gen ~loc td =
-  let pat = pat ~loc td.ptype_name.txt in
-  let gen = gen_from_type ~loc (Option.get td.ptype_manifest) in
-
-  [%stri
-    let [%p pat] =
-      let open QCheck in
-      let open Gen in
-      [%e gen]]
-
-let derive_arbitrary ~loc xs : structure =
-  match xs with
-  | (_, [ x ]) -> [gen ~loc x]
-  | (_, _xs) -> assert false
-  [@@ocamlformat "disable"]
-(* [ Arbitrary.from_type_declarations ~loc xs ] *)
-
-let create_arbitrary ~ctxt (decls : rec_flag * type_declaration list) :
-    structure =
-  let loc = Expansion_context.Deriver.derived_item_loc ctxt in
-  derive_arbitrary ~loc decls
-
-let arb_generator = Deriving.Generator.V2.make_noarg create_arbitrary
-
-let _ = Deriving.add "arb" ~str_type_decl:arb_generator
+    example:
+    {[
+    type t =
+    | A [@weight 5]
+    | B [@weight 6]
+    | C
+    ]}
+    It allows the user to specify the weight of a type case. *)
+val weight : attributes -> expression option
