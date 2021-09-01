@@ -25,17 +25,21 @@
 
 open Ppxlib
 
-(* TODO:
-
-   - For now my function returned a single structure_item (that is actually a
-   include struct with a structure inside. But we can now return a structure now
-*)
+let name s =
+  let prefix = "gen" in
+  match s with "t" -> prefix | s -> prefix ^ "_" ^ s
 
 let pat ~loc s =
-  let prefix = "gen" in
-  let s = match s with "t" -> prefix | s -> prefix ^ "_" ^ s in
   let (module A) = Ast_builder.make loc in
+  let s = name s in
   A.pvar s
+
+let gen ~loc lg =
+  let (module A) = Ast_builder.make loc in
+  match lg with
+  | Lident s -> name s |> A.evar
+  | Ldot (lg, s) -> A.(pexp_construct (Located.mk @@ Ldot (lg, name s)) None)
+  | Lapply (_, _) -> raise (Invalid_argument "gen received an Lapply")
 
 module Tuple = struct
   type 'a t =
@@ -104,10 +108,10 @@ end
 
 let map ~loc pat expr gen = [%expr map (fun [%p pat] -> [%e expr]) [%e gen]]
 
-let tuple ~loc tys =
+let tuple ~loc ?(f = fun x -> x) tys =
   let tuple = Tuple.from_list tys in
   let gen = Tuple.to_gen ~loc tuple in
-  let expr = Tuple.to_expr ~loc tuple in
+  let expr = Tuple.to_expr ~loc tuple |> f in
   let pat = Tuple.to_pat ~loc tuple in
   map ~loc pat expr gen
 
@@ -129,12 +133,42 @@ let rec gen_from_type ~loc typ =
       | { ptyp_desc = Ptyp_tuple typs; _ } ->
           let tys = List.map (gen_from_type ~loc) typs in
           tuple ~loc tys
-      | _ -> failwith "todo")
+      | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, []); _ } -> gen ~loc ty
+      | _ -> failwith "gen_from_type")
+
+and gen_from_variant ~loc xs =
+  let (module A) = Ast_builder.make loc in
+  let constr { pcd_name; pcd_args; pcd_attributes; _ } =
+    let constr_decl =
+      A.constructor_declaration ~name:pcd_name ~args:pcd_args ~res:None
+    in
+    let mk_constr expr = A.econstruct constr_decl (Some expr) in
+    let weight = Attributes.weight pcd_attributes in
+    let gen =
+      match pcd_args with
+      | Pcstr_tuple [] | Pcstr_record [] ->
+          [%expr pure [%e A.econstruct constr_decl None]]
+      | Pcstr_tuple xs ->
+          let tys = List.map (gen_from_type ~loc) xs in
+          tuple ~loc ~f:mk_constr tys
+      | _ -> failwith "record"
+    in
+    A.pexp_tuple [ Option.value ~default:[%expr 1] weight; gen ]
+  in
+
+  let gens = List.map constr xs |> A.elist in
+
+  [%expr frequency [%e gens]]
 
 let gen ~loc td =
   let pat = pat ~loc td.ptype_name.txt in
-  let gen = gen_from_type ~loc (Option.get td.ptype_manifest) in
-
+  let gen =
+    match td.ptype_kind with
+    | Ptype_variant xs -> gen_from_variant ~loc xs
+    | _ ->
+        let typ = Option.get td.ptype_manifest in
+        gen_from_type ~loc typ
+  in
   [%stri
     let [%p pat] =
       let open QCheck in

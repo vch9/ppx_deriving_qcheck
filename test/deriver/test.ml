@@ -381,40 +381,46 @@ let test_konstr () =
   let expected =
     [
       [%stri
-        let arb =
-          QCheck.frequency [ (1, QCheck.map (fun arb_0 -> A arb_0) QCheck.int) ]];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency [ (1, map (fun gen0 -> A gen0) int) ]];
       [%stri
-        let arb =
-          QCheck.frequency
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency
             [
-              (1, QCheck.map (fun arb_0 -> B arb_0) QCheck.int);
-              (1, QCheck.map (fun arb_0 -> C arb_0) QCheck.int);
+              (1, map (fun gen0 -> B gen0) int);
+              (1, map (fun gen0 -> C gen0) int);
             ]];
       [%stri
-        let arb =
-          QCheck.frequency
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency
             [
-              (1, QCheck.map (fun arb_0 -> X arb_0) arb_t1);
-              (1, QCheck.map (fun arb_0 -> Y arb_0) arb_t2);
-              (1, QCheck.map (fun arb_0 -> Z arb_0) QCheck.string);
+              (1, map (fun gen0 -> X gen0) gen_t1);
+              (1, map (fun gen0 -> Y gen0) gen_t2);
+              (1, map (fun gen0 -> Z gen0) string);
             ]];
       [%stri
-        let arb =
-          QCheck.frequency [ (1, QCheck.always Left); (1, QCheck.always Right) ]];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency [ (1, pure Left); (1, pure Right) ]];
       [%stri
-        let arb =
-          QCheck.frequency
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency
             [
-              (1, QCheck.map (fun arb_0 -> Simple arb_0) QCheck.int);
+              (1, map (fun gen0 -> Simple gen0) int);
+              (1, map (fun (gen0, gen0) -> Double (gen0, gen1)) (pair int int));
               ( 1,
-                QCheck.map
-                  (fun (arb_0, arb_1) -> Double (arb_0, arb_1))
-                  (QCheck.pair QCheck.int QCheck.int) );
-              ( 1,
-                QCheck.map
-                  (fun (arb_0, (arb_1, arb_2)) -> Triple (arb_0, arb_1, arb_2))
-                  (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int))
-              );
+                map
+                  (fun (gen0, gen1, gen2) -> Triple (gen0, gen1, gen2))
+                  (triple int int int) );
             ]];
     ]
   in
@@ -874,10 +880,10 @@ let () =
             test_case "deriving option" `Quick test_option;
             test_case "deriving array" `Quick test_array;
             test_case "deriving list" `Quick test_list;
+            test_case "deriving constructors" `Quick test_konstr;
             (* test_case "deriving alpha" `Quick test_alpha;
                * test_case "deriving equal" `Quick test_equal;
                * test_case "deriving dependencies" `Quick test_dependencies;
-               * test_case "deriving constructors" `Quick test_konstr;
                * test_case "deriving record" `Quick test_record;
                * test_case "deriving variant" `Quick test_variant;
                * test_case "deriving tree like" `Quick test_tree;
