@@ -211,41 +211,40 @@ let test_tuple () =
   let expected =
     [
       [%stri
-        let arb =
-          QCheck.map
-            (fun (arb_0, arb_1) -> (arb_0, arb_1))
-            (QCheck.pair QCheck.int QCheck.int)];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          map (fun (gen0, gen0) -> (gen0, gen1)) (pair int int)];
       [%stri
-        let arb =
-          QCheck.map
-            (fun (arb_0, (arb_1, arb_2)) -> (arb_0, arb_1, arb_2))
-            (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int))];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          map
+            (fun (gen0, gen1, gen2) -> (gen0, gen1, gen2))
+            (triple int int int)];
       [%stri
-        let arb =
-          QCheck.map
-            (fun ((arb_0, arb_1), (arb_2, arb_3)) ->
-              (arb_0, arb_1, arb_2, arb_3))
-            (QCheck.pair
-               (QCheck.pair QCheck.int QCheck.int)
-               (QCheck.pair QCheck.int QCheck.int))];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          map
+            (fun (gen0, gen1, gen2, gen3) -> (gen0, gen1, gen2, gen3))
+            (quad int int int int)];
       [%stri
-        let arb =
-          QCheck.map
-            (fun (arb_0, ((arb_1, arb_2), (arb_3, arb_4))) ->
-              (arb_0, arb_1, arb_2, arb_3, arb_4))
-            (QCheck.pair
-               QCheck.int
-               (QCheck.pair
-                  (QCheck.pair QCheck.int QCheck.int)
-                  (QCheck.pair QCheck.int QCheck.int)))];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          map
+            (fun ((gen0, gen0), (gen0, gen1, gen2)) ->
+              (gen0, gen1, gen2, gen3, gen4))
+            (pair (pair int int) (triple int int int))];
       [%stri
-        let arb =
-          QCheck.map
-            (fun ((arb_0, (arb_1, arb_2)), (arb_3, (arb_4, arb_5))) ->
-              (arb_0, arb_1, arb_2, arb_3, arb_4, arb_5))
-            (QCheck.pair
-               (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int))
-               (QCheck.pair QCheck.int (QCheck.pair QCheck.int QCheck.int)))];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          map
+            (fun ((gen0, gen1, gen2), (gen0, gen1, gen2)) ->
+              (gen0, gen1, gen2, gen3, gen4, gen5))
+            (pair (triple int int int) (triple int int int))];
     ]
   in
 
@@ -881,22 +880,22 @@ let () =
             test_case "deriving int64'" `Quick test_int64';
             (* test_case "deriving bytes" `Quick test_bytes; *)
             test_case "deriving tuple" `Quick test_tuple;
-            test_case "deriving option" `Quick test_option;
-            test_case "deriving list" `Quick test_list;
-            test_case "deriving alpha" `Quick test_alpha;
-            test_case "deriving equal" `Quick test_equal;
-            test_case "deriving dependencies" `Quick test_dependencies;
-            test_case "deriving constructors" `Quick test_konstr;
-            test_case "deriving record" `Quick test_record;
-            test_case "deriving variant" `Quick test_variant;
-            test_case "deriving tree like" `Quick test_tree;
-            test_case "deriving recursive" `Quick test_recursive;
-            test_case "deriving fun axioms" `Quick test_fun_axiom;
-            test_case "deriving fun n" `Quick test_fun_n;
-            test_case "deriving fun option" `Quick test_fun_option;
-            test_case "deriving fun list" `Quick test_fun_list;
-            test_case "deriving fun array" `Quick test_fun_array;
-            test_case "deriving fun tuple" `Quick test_fun_tuple;
-            test_case "deriving weight constructors" `Quick test_weight_konstrs;
+            (* test_case "deriving option" `Quick test_option;
+             * test_case "deriving list" `Quick test_list;
+             * test_case "deriving alpha" `Quick test_alpha;
+             * test_case "deriving equal" `Quick test_equal;
+             * test_case "deriving dependencies" `Quick test_dependencies;
+             * test_case "deriving constructors" `Quick test_konstr;
+             * test_case "deriving record" `Quick test_record;
+             * test_case "deriving variant" `Quick test_variant;
+             * test_case "deriving tree like" `Quick test_tree;
+             * test_case "deriving recursive" `Quick test_recursive;
+             * test_case "deriving fun axioms" `Quick test_fun_axiom;
+             * test_case "deriving fun n" `Quick test_fun_n;
+             * test_case "deriving fun option" `Quick test_fun_option;
+             * test_case "deriving fun list" `Quick test_fun_list;
+             * test_case "deriving fun array" `Quick test_fun_array;
+             * test_case "deriving fun tuple" `Quick test_fun_tuple;
+             * test_case "deriving weight constructors" `Quick test_weight_konstrs; *)
           ] );
       ])

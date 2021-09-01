@@ -51,10 +51,89 @@ let built_in_opt ~loc = function
    * | [%type: array] -> Some [%expr array] *)
   | _ -> None
 
-let gen_from_type ~loc typ =
+module Tuple = struct
+  type 'a t =
+    | Pair of 'a t * 'a t
+    | Triple of 'a * 'a * 'a
+    | Quad of 'a * 'a * 'a * 'a
+    | Elem of 'a
+
+  let rec from_list = function
+    | [ a; b; c; d ] -> Quad (a, b, c, d)
+    | [ a; b; c ] -> Triple (a, b, c)
+    | [ a; b ] -> Pair (Elem a, Elem b)
+    | [ a ] -> Elem a
+    | l ->
+        let n = List.length l / 2 in
+        let l1 = List.filteri (fun i _ -> i < n) l in
+        let l2 = List.filteri (fun i _ -> i >= n) l in
+        Pair (from_list l1, from_list l2)
+
+  let rec to_list = function
+    | Quad (a, b, c, d) -> [ a; b; c; d ]
+    | Triple (a, b, c) -> [ a; b; c ]
+    | Pair (a, b) -> to_list a @ to_list b
+    | Elem a -> [ a ]
+
+  let to_expr ~loc t =
+    let l = to_list t in
+    let (module A) = Ast_builder.make loc in
+    List.mapi
+      (fun i _ ->
+        let s = Printf.sprintf "gen%d" i in
+        A.evar s)
+      l
+    |> A.pexp_tuple
+
+  let rec to_gen ~loc = function
+    | Quad (a, b, c, d) -> [%expr quad [%e a] [%e b] [%e c] [%e d]]
+    | Triple (a, b, c) -> [%expr triple [%e a] [%e b] [%e c]]
+    | Pair (a, b) -> [%expr pair [%e to_gen ~loc a] [%e to_gen ~loc b]]
+    | Elem a -> a
+
+  let rec to_pat ~loc t =
+    let fresh_id =
+      let id = ref 0 in
+      fun () ->
+        let x = !id in
+        let () = id := x + 1 in
+        Printf.sprintf "gen%d" x
+    in
+    let (module A) = Ast_builder.make loc in
+    match t with
+    | Quad (_, _, _, _) ->
+        let a = A.pvar @@ fresh_id () in
+        let b = A.pvar @@ fresh_id () in
+        let c = A.pvar @@ fresh_id () in
+        let d = A.pvar @@ fresh_id () in
+        [%pat? ([%p a], [%p b], [%p c], [%p d])]
+    | Triple (_, _, _) ->
+        let a = A.pvar @@ fresh_id () in
+        let b = A.pvar @@ fresh_id () in
+        let c = A.pvar @@ fresh_id () in
+        [%pat? ([%p a], [%p b], [%p c])]
+    | Pair (a, b) -> [%pat? ([%p to_pat ~loc a], [%p to_pat ~loc b])]
+    | Elem _ -> A.pvar @@ fresh_id ()
+end
+
+let map ~loc pat expr gen = [%expr map (fun [%p pat] -> [%e expr]) [%e gen]]
+
+let tuple ~loc tys =
+  let tuple = Tuple.from_list tys in
+  let gen = Tuple.to_gen ~loc tuple in
+  let expr = Tuple.to_expr ~loc tuple in
+  let pat = Tuple.to_pat ~loc tuple in
+  map ~loc pat expr gen
+
+let rec gen_from_type ~loc typ =
   match (Attributes.arb typ, built_in_opt ~loc typ) with
   | (Some x, _) | (None, Some x) -> x
-  | (None, None) -> failwith "todo"
+  | (None, None) -> (
+      match typ with
+      | { ptyp_desc = Ptyp_tuple typs; _ } ->
+          let tys = List.map (gen_from_type ~loc) typs in
+          tuple ~loc tys
+      | _ -> failwith "todo")
 
 let gen ~loc td =
   let pat = pat ~loc td.ptype_name.txt in
