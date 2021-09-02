@@ -25,6 +25,50 @@
 
 open Ppxlib
 
+(** TypeGen can serve as a derivation environment. The map can be used
+    to remember how a type should be translated.
+
+    For instance, a recursive type must be derivated to a self recursive
+    call reducing the size.
+
+    {[
+    type tree = Leaf of int | Node of tree * tree
+    ]}
+
+    becomes
+
+    {[
+    let gen_tree =
+      let open QCheck in
+      let open Gen in
+      sized
+        @@ fix (fun self -> function
+             | 0 -> frequency [ (1, pure Leaf) ]
+             | n ->
+                 frequency
+                   [
+                     (1, pure Leaf);
+                     ( 1,
+                       map
+                         (fun (gen0, gen1, gen2) -> Node (gen0, gen1, gen2))
+                         (triple int (self (n / 1)) (self (n / 1))) );])
+    ]}
+
+    The type [tree] is stored in a TypeGen.t with tree <- [%expr self (n/2)]. This
+    avoids the case where [tree] is derivated to [gen_tree]
+*)
+module TypeGen = Map.Make (struct
+  type t = string
+
+  let compare = compare
+end)
+
+let rec longident_to_str = function
+  | Lident s -> s
+  | Ldot (lg, s) -> Printf.sprintf "%s.%s" (longident_to_str lg) s
+  | Lapply (lg1, lg2) ->
+      Printf.sprintf "%s %s" (longident_to_str lg1) (longident_to_str lg2)
+
 let name s =
   let prefix = "gen" in
   match s with "t" -> prefix | s -> prefix ^ "_" ^ s
@@ -143,7 +187,7 @@ let record ~loc ~gens ?(f = fun x -> x) xs =
 
   map ~loc pat expr gen
 
-let rec gen_from_type ~loc typ =
+let rec gen_from_type ~loc ?(env = TypeGen.empty) typ =
   Option.value
     (Attributes.arb typ)
     ~default:
@@ -164,41 +208,72 @@ let rec gen_from_type ~loc typ =
           | { ptyp_desc = Ptyp_tuple typs; _ } ->
               let tys = List.map (gen_from_type ~loc) typs in
               tuple ~loc tys
-          | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, []); _ } -> gen ~loc ty
+          | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, []); _ } ->
+              let x = TypeGen.find_opt (longident_to_str ty) env in
+              Option.value ~default:(gen ~loc ty) x
+          (* | { ptyp_desc = Ptyp_constr ({ txt = _ty; _ }, _xs); _ } ->
+           *     failwith "todo" *)
           | _ -> failwith "gen_from_type"))
 
-and gen_from_variant ~loc xs =
+and gen_from_constr ~loc ?(env = TypeGen.empty)
+    { pcd_name; pcd_args; pcd_attributes; _ } =
   let (module A) = Ast_builder.make loc in
-  let constr { pcd_name; pcd_args; pcd_attributes; _ } =
-    let constr_decl =
-      A.constructor_declaration ~name:pcd_name ~args:pcd_args ~res:None
-    in
-    let mk_constr expr = A.econstruct constr_decl (Some expr) in
-    let weight = Attributes.weight pcd_attributes in
-    let gen =
-      match pcd_args with
-      | Pcstr_tuple [] | Pcstr_record [] ->
-          [%expr pure [%e A.econstruct constr_decl None]]
-      | Pcstr_tuple xs ->
-          let tys = List.map (gen_from_type ~loc) xs in
-          tuple ~loc ~f:mk_constr tys
-      | Pcstr_record xs ->
-          let tys = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
-          record ~loc ~f:mk_constr ~gens:tys xs
-    in
-
-    A.pexp_tuple [ Option.value ~default:[%expr 1] weight; gen ]
+  let constr_decl =
+    A.constructor_declaration ~name:pcd_name ~args:pcd_args ~res:None
+  in
+  let mk_constr expr = A.econstruct constr_decl (Some expr) in
+  let weight = Attributes.weight pcd_attributes in
+  let gen =
+    match pcd_args with
+    | Pcstr_tuple [] | Pcstr_record [] ->
+        [%expr pure [%e A.econstruct constr_decl None]]
+    | Pcstr_tuple xs ->
+        let tys = List.map (gen_from_type ~loc ~env) xs in
+        tuple ~loc ~f:mk_constr tys
+    | Pcstr_record xs ->
+        let tys = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
+        record ~loc ~f:mk_constr ~gens:tys xs
   in
 
-  let gens = List.map constr xs |> A.elist in
+  A.pexp_tuple [ Option.value ~default:[%expr 1] weight; gen ]
 
-  [%expr frequency [%e gens]]
+and gen_from_variant ~loc typ_name xs =
+  let (module A) = Ast_builder.make loc in
+  let is_rec (constr : constructor_declaration) : bool =
+    match constr.pcd_args with
+    | Pcstr_tuple xs ->
+        List.exists
+          (function
+            | { ptyp_desc = Ptyp_constr ({ txt = x; _ }, _); _ } ->
+                longident_to_str x = typ_name
+            | _ -> false)
+          xs
+    | _ -> false
+  in
+
+  let leaves =
+    List.filter (fun x -> not (is_rec x)) xs |> List.map (gen_from_constr ~loc)
+  in
+  let nodes = List.filter is_rec xs in
+
+  if List.length nodes > 0 then
+    let env = TypeGen.singleton typ_name [%expr self (n / 2)] in
+    let nodes = nodes |> List.map (gen_from_constr ~loc ~env) in
+    let leaves = A.elist leaves and nodes = A.elist (leaves @ nodes) in
+    [%expr
+      sized
+      @@ fix (fun self -> function
+           | 0 -> frequency [%e leaves] | n -> frequency [%e nodes])]
+  else
+    let gens = A.elist leaves in
+    [%expr frequency [%e gens]]
 
 let gen ~loc td =
-  let pat = pat ~loc td.ptype_name.txt in
+  let name = td.ptype_name.txt in
+  let pat = pat ~loc name in
   let gen =
     match td.ptype_kind with
-    | Ptype_variant xs -> gen_from_variant ~loc xs
+    | Ptype_variant xs -> gen_from_variant ~loc name xs
     | Ptype_record xs ->
         let gens = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
         record ~loc ~gens xs

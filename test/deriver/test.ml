@@ -331,13 +331,15 @@ let test_equal () =
   let expected =
     [
       [%stri
-        let arb =
-          QCheck.frequency
-            [ (1, QCheck.always A); (1, QCheck.always B); (1, QCheck.always C) ]];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          frequency [ (1, pure A); (1, pure B); (1, pure C) ]];
       [%stri
-        let arb_t' =
-          QCheck.frequency
-            [ (1, QCheck.always A); (1, QCheck.always B); (1, QCheck.always C) ]];
+        let gen_t' =
+          let open QCheck in
+          let open Gen in
+          frequency [ (1, pure A); (1, pure B); (1, pure C) ]];
     ]
   in
   let actual =
@@ -540,65 +542,46 @@ let test_tree () =
   let expected =
     [
       [%stri
-        include struct
-          let rec arb_tree () = arb_tree_sized 5
-
-          and arb_tree_sized = function
-            | 0 -> QCheck.frequency [ (1, QCheck.always Leaf) ]
-            | n ->
-                QCheck.frequency
-                  [
-                    (1, QCheck.always Leaf);
-                    ( 1,
-                      QCheck.map
-                        (fun (arb_0, (arb_1, arb_2)) ->
-                          Node (arb_0, arb_1, arb_2))
-                        (QCheck.pair
-                           QCheck.int
-                           (QCheck.pair
-                              (arb_tree_sized (n - 1))
-                              (arb_tree_sized (n - 1)))) );
-                  ]
-
-          let arb_tree = arb_tree ()
-        end];
+        let gen_tree =
+          let open QCheck in
+          let open Gen in
+          sized
+          @@ fix (fun self -> function
+               | 0 -> frequency [ (1, pure Leaf) ]
+               | n ->
+                   frequency
+                     [
+                       (1, pure Leaf);
+                       ( 1,
+                         map
+                           (fun (gen0, gen1, gen2) -> Node (gen0, gen1, gen2))
+                           (triple int (self (n / 2)) (self (n / 2))) );
+                     ])];
       [%stri
-        include struct
-          let rec arb_expr () = arb_expr_sized 5
-
-          and arb_expr_sized = function
-            | 0 ->
-                QCheck.frequency
-                  [ (1, QCheck.map (fun arb_0 -> Value arb_0) QCheck.int) ]
-            | n ->
-                QCheck.frequency
-                  [
-                    (1, QCheck.map (fun arb_0 -> Value arb_0) QCheck.int);
-                    ( 1,
-                      QCheck.map
-                        (fun (arb_0, (arb_1, arb_2)) ->
-                          If (arb_0, arb_1, arb_2))
-                        (QCheck.pair
-                           (arb_expr_sized (n - 1))
-                           (QCheck.pair
-                              (arb_expr_sized (n - 1))
-                              (arb_expr_sized (n - 1)))) );
-                    ( 1,
-                      QCheck.map
-                        (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
-                        (QCheck.pair
-                           (arb_expr_sized (n - 1))
-                           (arb_expr_sized (n - 1))) );
-                    ( 1,
-                      QCheck.map
-                        (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
-                        (QCheck.pair
-                           (arb_expr_sized (n - 1))
-                           (arb_expr_sized (n - 1))) );
-                  ]
-
-          let arb_expr = arb_expr ()
-        end];
+        let gen_expr =
+          let open QCheck in
+          let open Gen in
+          sized
+          @@ fix (fun self -> function
+               | 0 -> frequency [ (1, map (fun gen0 -> Value gen0) int) ]
+               | n ->
+                   frequency
+                     [
+                       (1, map (fun gen0 -> Value gen0) int);
+                       ( 1,
+                         map
+                           (fun (gen0, gen1, gen2) -> If (gen0, gen1, gen2))
+                           (triple (self (n / 2)) (self (n / 2)) (self (n / 2)))
+                       );
+                       ( 1,
+                         map
+                           (fun (gen0, gen1) -> Eq (gen0, gen1))
+                           (pair (self (n / 2)) (self (n / 2))) );
+                       ( 1,
+                         map
+                           (fun (gen0, gen1) -> Lt (gen0, gen1))
+                           (pair (self (n / 2)) (self (n / 2))) );
+                     ])];
     ]
   in
   let actual =
@@ -636,22 +619,22 @@ let test_recursive () =
                         (fun (arb_0, (arb_1, arb_2)) ->
                           If (arb_0, arb_1, arb_2))
                         (QCheck.pair
-                           (arb_expr_sized (n - 1))
+                           (arb_expr_sized (n / 2))
                            (QCheck.pair
-                              (arb_expr_sized (n - 1))
-                              (arb_expr_sized (n - 1)))) );
+                              (arb_expr_sized (n / 2))
+                              (arb_expr_sized (n / 2)))) );
                     ( 1,
                       QCheck.map
                         (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
                         (QCheck.pair
-                           (arb_expr_sized (n - 1))
-                           (arb_expr_sized (n - 1))) );
+                           (arb_expr_sized (n / 2))
+                           (arb_expr_sized (n / 2))) );
                     ( 1,
                       QCheck.map
                         (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
                         (QCheck.pair
-                           (arb_expr_sized (n - 1))
-                           (arb_expr_sized (n - 1))) );
+                           (arb_expr_sized (n / 2))
+                           (arb_expr_sized (n / 2))) );
                   ]
 
           and arb_value () =
@@ -888,10 +871,10 @@ let () =
             test_case "deriving constructors" `Quick test_konstr;
             test_case "deriving dependencies" `Quick test_dependencies;
             test_case "deriving record" `Quick test_record;
+            test_case "deriving equal" `Quick test_equal;
+            test_case "deriving tree like" `Quick test_tree;
             (* test_case "deriving alpha" `Quick test_alpha;
-               * test_case "deriving equal" `Quick test_equal;
                * test_case "deriving variant" `Quick test_variant;
-               * test_case "deriving tree like" `Quick test_tree;
                * test_case "deriving recursive" `Quick test_recursive;
                * test_case "deriving fun axioms" `Quick test_fun_axiom;
                * test_case "deriving fun n" `Quick test_fun_n;
