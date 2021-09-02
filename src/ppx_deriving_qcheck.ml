@@ -208,11 +208,10 @@ let rec gen_from_type ~loc ?(env = TypeGen.empty) typ =
           | { ptyp_desc = Ptyp_tuple typs; _ } ->
               let tys = List.map (gen_from_type ~loc) typs in
               tuple ~loc tys
-          | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, []); _ } ->
+          | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, _); _ } ->
               let x = TypeGen.find_opt (longident_to_str ty) env in
               Option.value ~default:(gen ~loc ty) x
-          (* | { ptyp_desc = Ptyp_constr ({ txt = _ty; _ }, _xs); _ } ->
-           *     failwith "todo" *)
+          | { ptyp_desc = Ptyp_var s; _ } -> gen ~loc (Lident s)
           | _ -> failwith "gen_from_type"))
 
 and gen_from_constr ~loc ?(env = TypeGen.empty)
