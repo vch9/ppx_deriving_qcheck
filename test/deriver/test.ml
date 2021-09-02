@@ -293,25 +293,53 @@ let test_list () =
 let test_alpha () =
   let expected =
     [
-      [%stri let arb arb_a = arb_a];
-      [%stri let arb arb_a = QCheck.list arb_a];
       [%stri
-        let arb arb_a =
-          QCheck.frequency [ (1, QCheck.map (fun arb_0 -> A arb_0) arb_a) ]];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          fun gen_a -> gen_a];
       [%stri
-        let arb arb_a arb_b =
-          QCheck.frequency
-            [
-              ( 1,
-                QCheck.map
-                  (fun (arb_0, arb_1) -> A (arb_0, arb_1))
-                  (QCheck.pair arb_a arb_b) );
-            ]];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          fun gen_a -> list gen_a];
       [%stri
-        let arb arb_left arb_right =
-          QCheck.map
-            (fun (arb_0, arb_1) -> (arb_0, arb_1))
-            (QCheck.pair arb_left arb_right)];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          fun gen_a -> frequency [ (1, map (fun gen0 -> A gen0) gen_a) ]];
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          fun gen_a gen_b ->
+            frequency
+              [
+                (1, map (fun (gen0, gen1) -> A (gen0, gen1)) (pair gen_a gen_b));
+              ]];
+      [%stri
+        let gen =
+          let open QCheck in
+          let open Gen in
+          fun gen_left gen_right ->
+            map (fun (gen0, gen1) -> (gen0, gen1)) (pair gen_left gen_right)];
+      [%stri
+        let gen_tree =
+          let open QCheck in
+          let open Gen in
+          fun gen_a ->
+            sized
+            @@ fix (fun self -> function
+                 | 0 -> frequency [ (1, map (fun gen0 -> Leaf gen0) gen_a) ]
+                 | n ->
+                     frequency
+                       [
+                         (1, map (fun gen0 -> Leaf gen0) gen_a);
+                         ( 1,
+                           map
+                             (fun (gen0, gen1) -> Node (gen0, gen1))
+                             (pair (self (n / 2)) (self (n / 2))) );
+                       ])];
     ]
   in
   let actual =
@@ -323,6 +351,7 @@ let test_alpha () =
            [%stri type 'a t = A of 'a];
            [%stri type ('a, 'b) t = A of 'a * 'b];
            [%stri type ('left, 'right) t = 'left * 'right];
+           [%stri type 'a tree = Leaf of 'a | Node of 'a tree * 'a tree];
          ]
   in
   check_eq ~expected ~actual "deriving alpha"
@@ -873,7 +902,8 @@ let () =
             test_case "deriving record" `Quick test_record;
             test_case "deriving equal" `Quick test_equal;
             test_case "deriving tree like" `Quick test_tree;
-            (* test_case "deriving alpha" `Quick test_alpha;
+            test_case "deriving alpha" `Quick test_alpha;
+            (*
                * test_case "deriving variant" `Quick test_variant;
                * test_case "deriving recursive" `Quick test_recursive;
                * test_case "deriving fun axioms" `Quick test_fun_axiom;

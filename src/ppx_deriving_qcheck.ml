@@ -267,9 +267,22 @@ and gen_from_variant ~loc typ_name xs =
     let gens = A.elist leaves in
     [%expr frequency [%e gens]]
 
+let rec curry_args ~loc args body =
+  match args with
+  | [] -> body
+  | x :: xs -> [%expr fun [%p x] -> [%e curry_args ~loc xs body]]
+
 let gen ~loc td =
   let name = td.ptype_name.txt in
-  let pat = pat ~loc name in
+  let pat_gen = pat ~loc name in
+
+  let args =
+    List.map
+      (fun (typ, _) ->
+        match typ.ptyp_desc with Ptyp_var s -> pat ~loc s | _ -> assert false)
+      td.ptype_params
+  in
+
   let gen =
     match td.ptype_kind with
     | Ptype_variant xs -> gen_from_variant ~loc name xs
@@ -280,8 +293,10 @@ let gen ~loc td =
         let typ = Option.get td.ptype_manifest in
         gen_from_type ~loc typ
   in
+  let gen = curry_args ~loc args gen in
+
   [%stri
-    let [%p pat] =
+    let [%p pat_gen] =
       let open QCheck in
       let open Gen in
       [%e gen]]
