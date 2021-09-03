@@ -25,14 +25,6 @@
 
 open Ppxlib
 
-(* GLOBAL TODO:
-
-   Every call to a function in QCheck should be factorized in one function.
-   For instance every calls to frequency should refer to a function
-   [val frequency : expression list -> expression]
-
-   This would allow to use Gen from QCheck or QCheck2 for retro-compatibility issues *)
-
 (** TypeGen can serve as a derivation environment. The map can be used
     to remember how a type should be translated.
 
@@ -92,6 +84,16 @@ let gen ~loc lg =
   | Lident s -> name s |> A.evar
   | Ldot (lg, s) -> A.(pexp_construct (Located.mk @@ Ldot (lg, name s)) None)
   | Lapply (_, _) -> raise (Invalid_argument "gen received an Lapply")
+
+let frequency ~loc l = [%expr QCheck.Gen.frequency [%e l]]
+
+let pure ~loc x = [%expr QCheck.Gen.pure [%e x]]
+
+let tree ~loc nodes leaves =
+  [%expr
+    QCheck.Gen.sized
+    @@ QCheck.Gen.fix (fun self -> function
+         | 0 -> [%e leaves] | n -> [%e nodes])]
 
 module Tuple = struct
   type 'a t =
@@ -240,7 +242,7 @@ and gen_from_constr ~loc ?(env = TypeGen.empty)
   let gen =
     match pcd_args with
     | Pcstr_tuple [] | Pcstr_record [] ->
-        [%expr QCheck.Gen.pure [%e A.econstruct constr_decl None]]
+        pure ~loc @@ A.econstruct constr_decl None
     | Pcstr_tuple xs ->
         let tys = List.map (gen_from_type ~loc ~env) xs in
         tuple ~loc ~f:mk_constr tys
@@ -273,8 +275,7 @@ and gen_from_variant ~loc typ_name rws =
     let gen =
       match row.prf_desc with
       | Rinherit typ -> gen_from_type ~loc typ
-      | Rtag (label, _, []) ->
-          [%expr QCheck.Gen.pure [%e A.pexp_variant label.txt None]]
+      | Rtag (label, _, []) -> pure ~loc @@ A.pexp_variant label.txt None
       | Rtag (label, _, typs) ->
           let f expr = A.pexp_variant label.txt (Some expr) in
           tuple ~loc ~f (List.map (gen_from_type ~loc ?env) typs)
@@ -297,15 +298,12 @@ and gen_from_variant ~loc typ_name rws =
         List.map (gen ~env) nodes
         |> List.map (fun (weight, gen) -> [%expr [%e weight], [%e gen]])
       in
-      let leaves = A.elist leaves and nodes = A.elist (leaves @ nodes) in
-      [%expr
-        QCheck.Gen.sized
-        @@ QCheck.Gen.fix (fun self -> function
-             | 0 -> QCheck.Gen.frequency [%e leaves]
-             | n -> QCheck.Gen.frequency [%e nodes])]
+      let leaves = A.elist leaves |> frequency ~loc
+      and nodes = A.elist (leaves @ nodes) |> frequency ~loc in
+      tree ~loc nodes leaves
     else
       let gens = A.elist leaves in
-      [%expr QCheck.Gen.frequency [%e gens]]
+      frequency ~loc gens
   in
   let typ_t = A.ptyp_constr (A.Located.mk @@ Lident typ_name) [] in
   let typ_gen = A.Located.mk @@ Lident "QCheck.Gen.t" in
@@ -334,15 +332,12 @@ let gen_from_kind_variant ~loc typ_name xs =
   if List.length nodes > 0 then
     let env = TypeGen.singleton typ_name [%expr self (n / 2)] in
     let nodes = nodes |> List.map (gen_from_constr ~loc ~env) in
-    let leaves = A.elist leaves and nodes = A.elist (leaves @ nodes) in
-    [%expr
-      QCheck.Gen.sized
-      @@ QCheck.Gen.fix (fun self -> function
-           | 0 -> QCheck.Gen.frequency [%e leaves]
-           | n -> QCheck.Gen.frequency [%e nodes])]
+    let leaves = A.elist leaves |> frequency ~loc
+    and nodes = A.elist (leaves @ nodes) |> frequency ~loc in
+    tree ~loc nodes leaves
   else
     let gens = A.elist leaves in
-    [%expr QCheck.Gen.frequency [%e gens]]
+    frequency ~loc gens
 
 let rec curry_args ~loc args body =
   match args with
