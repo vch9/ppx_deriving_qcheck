@@ -25,6 +25,14 @@
 
 open Ppxlib
 
+(* GLOBAL TODO:
+
+   Every call to a function in QCheck should be factorized in one function.
+   For instance every calls to frequency should refer to a function
+   [val frequency : expression list -> expression]
+
+   This would allow to use Gen from QCheck or QCheck2 for retro-compatibility issues *)
+
 (** TypeGen can serve as a derivation environment. The map can be used
     to remember how a type should be translated.
 
@@ -120,9 +128,10 @@ module Tuple = struct
     |> A.pexp_tuple
 
   let rec to_gen ~loc = function
-    | Quad (a, b, c, d) -> [%expr quad [%e a] [%e b] [%e c] [%e d]]
-    | Triple (a, b, c) -> [%expr triple [%e a] [%e b] [%e c]]
-    | Pair (a, b) -> [%expr pair [%e to_gen ~loc a] [%e to_gen ~loc b]]
+    | Quad (a, b, c, d) -> [%expr QCheck.Gen.quad [%e a] [%e b] [%e c] [%e d]]
+    | Triple (a, b, c) -> [%expr QCheck.Gen.triple [%e a] [%e b] [%e c]]
+    | Pair (a, b) ->
+        [%expr QCheck.Gen.pair [%e to_gen ~loc a] [%e to_gen ~loc b]]
     | Elem a -> a
 
   let to_pat ~loc t =
@@ -155,7 +164,8 @@ module Tuple = struct
     aux t
 end
 
-let map ~loc pat expr gen = [%expr map (fun [%p pat] -> [%e expr]) [%e gen]]
+let map ~loc pat expr gen =
+  [%expr QCheck.Gen.map (fun [%p pat] -> [%e expr]) [%e gen]]
 
 let tuple ~loc ?(f = fun x -> x) tys =
   let tuple = Tuple.from_list tys in
@@ -192,17 +202,20 @@ let rec gen_from_type ~loc ?(env = TypeGen.empty) ?(typ_name = "") typ =
     (Attributes.arb typ)
     ~default:
       (match typ with
-      | [%type: unit] -> [%expr unit]
-      | [%type: int] -> [%expr int]
-      | [%type: string] | [%type: String.t] -> [%expr string]
-      | [%type: char] -> [%expr char]
-      | [%type: bool] -> [%expr bool]
-      | [%type: float] -> [%expr float]
-      | [%type: int32] | [%type: Int32.t] -> [%expr int32]
-      | [%type: int64] | [%type: Int64.t] -> [%expr int64]
-      | [%type: [%t? typ] option] -> [%expr option [%e gen_from_type ~loc typ]]
-      | [%type: [%t? typ] list] -> [%expr list [%e gen_from_type ~loc typ]]
-      | [%type: [%t? typ] array] -> [%expr array [%e gen_from_type ~loc typ]]
+      | [%type: unit] -> [%expr QCheck.Gen.unit]
+      | [%type: int] -> [%expr QCheck.Gen.int]
+      | [%type: string] | [%type: String.t] -> [%expr QCheck.Gen.string]
+      | [%type: char] -> [%expr QCheck.Gen.char]
+      | [%type: bool] -> [%expr QCheck.Gen.bool]
+      | [%type: float] -> [%expr QCheck.Gen.float]
+      | [%type: int32] | [%type: Int32.t] -> [%expr QCheck.Gen.int32]
+      | [%type: int64] | [%type: Int64.t] -> [%expr QCheck.Gen.int64]
+      | [%type: [%t? typ] option] ->
+          [%expr QCheck.Gen.option [%e gen_from_type ~loc typ]]
+      | [%type: [%t? typ] list] ->
+          [%expr QCheck.Gen.list [%e gen_from_type ~loc typ]]
+      | [%type: [%t? typ] array] ->
+          [%expr QCheck.Gen.array [%e gen_from_type ~loc typ]]
       | _ -> (
           match typ with
           | { ptyp_desc = Ptyp_tuple typs; _ } ->
@@ -227,7 +240,7 @@ and gen_from_constr ~loc ?(env = TypeGen.empty)
   let gen =
     match pcd_args with
     | Pcstr_tuple [] | Pcstr_record [] ->
-        [%expr pure [%e A.econstruct constr_decl None]]
+        [%expr QCheck.Gen.pure [%e A.econstruct constr_decl None]]
     | Pcstr_tuple xs ->
         let tys = List.map (gen_from_type ~loc ~env) xs in
         tuple ~loc ~f:mk_constr tys
@@ -260,7 +273,8 @@ and gen_from_variant ~loc typ_name rws =
     let gen =
       match row.prf_desc with
       | Rinherit typ -> gen_from_type ~loc typ
-      | Rtag (label, _, []) -> [%expr pure [%e A.pexp_variant label.txt None]]
+      | Rtag (label, _, []) ->
+          [%expr QCheck.Gen.pure [%e A.pexp_variant label.txt None]]
       | Rtag (label, _, typs) ->
           let f expr = A.pexp_variant label.txt (Some expr) in
           tuple ~loc ~f (List.map (gen_from_type ~loc ?env) typs)
@@ -285,15 +299,16 @@ and gen_from_variant ~loc typ_name rws =
       in
       let leaves = A.elist leaves and nodes = A.elist (leaves @ nodes) in
       [%expr
-        sized
-        @@ fix (fun self -> function
-             | 0 -> frequency [%e leaves] | n -> frequency [%e nodes])]
+        QCheck.Gen.sized
+        @@ QCheck.Gen.fix (fun self -> function
+             | 0 -> QCheck.Gen.frequency [%e leaves]
+             | n -> QCheck.Gen.frequency [%e nodes])]
     else
       let gens = A.elist leaves in
-      [%expr frequency [%e gens]]
+      [%expr QCheck.Gen.frequency [%e gens]]
   in
   let typ_t = A.ptyp_constr (A.Located.mk @@ Lident typ_name) [] in
-  let typ_gen = A.Located.mk @@ Lident "t" in
+  let typ_gen = A.Located.mk @@ Lident "QCheck.Gen.t" in
   let typ = A.ptyp_constr typ_gen [ typ_t ] in
   [%expr ([%e gen] : [%t typ])]
 
@@ -321,12 +336,13 @@ let gen_from_kind_variant ~loc typ_name xs =
     let nodes = nodes |> List.map (gen_from_constr ~loc ~env) in
     let leaves = A.elist leaves and nodes = A.elist (leaves @ nodes) in
     [%expr
-      sized
-      @@ fix (fun self -> function
-           | 0 -> frequency [%e leaves] | n -> frequency [%e nodes])]
+      QCheck.Gen.sized
+      @@ QCheck.Gen.fix (fun self -> function
+           | 0 -> QCheck.Gen.frequency [%e leaves]
+           | n -> QCheck.Gen.frequency [%e nodes])]
   else
     let gens = A.elist leaves in
-    [%expr frequency [%e gens]]
+    [%expr QCheck.Gen.frequency [%e gens]]
 
 let rec curry_args ~loc args body =
   match args with
@@ -356,11 +372,7 @@ let gen ~loc td =
   in
   let gen = curry_args ~loc args gen in
 
-  [%stri
-    let [%p pat_gen] =
-      let open QCheck in
-      let open Gen in
-      [%e gen]]
+  [%stri let [%p pat_gen] = [%e gen]]
 
 let derive_arbitrary ~loc xs : structure =
   match xs with
