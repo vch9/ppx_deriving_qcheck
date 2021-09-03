@@ -525,53 +525,50 @@ let test_recursive () =
   let expected =
     [
       [%stri
-        include struct
-          let rec arb_expr () = arb_expr_sized 5
+        let rec gen_expr () =
+          QCheck.Gen.sized
+          @@ QCheck.Gen.fix (fun self -> function
+               | 0 ->
+                   QCheck.Gen.frequency
+                     [
+                       ( 1,
+                         QCheck.Gen.map (fun gen0 -> Value gen0) (gen_value ())
+                       );
+                     ]
+               | n ->
+                   QCheck.Gen.frequency
+                     [
+                       ( 1,
+                         QCheck.Gen.map (fun gen0 -> Value gen0) (gen_value ())
+                       );
+                       ( 1,
+                         QCheck.Gen.map
+                           (fun (gen0, gen1, gen2) -> If (gen0, gen1, gen2))
+                           (QCheck.Gen.triple
+                              (self (n / 2))
+                              (self (n / 2))
+                              (self (n / 2))) );
+                       ( 1,
+                         QCheck.Gen.map
+                           (fun (gen0, gen1) -> Eq (gen0, gen1))
+                           (QCheck.Gen.pair (self (n / 2)) (self (n / 2))) );
+                       ( 1,
+                         QCheck.Gen.map
+                           (fun (gen0, gen1) -> Lt (gen0, gen1))
+                           (QCheck.Gen.pair (self (n / 2)) (self (n / 2))) );
+                     ])
 
-          and arb_expr_sized = function
-            | 0 ->
-                QCheck.frequency
-                  [ (1, QCheck.map (fun arb_0 -> Value arb_0) (arb_value ())) ]
-            | n ->
-                QCheck.frequency
-                  [
-                    (1, QCheck.map (fun arb_0 -> Value arb_0) (arb_value ()));
-                    ( 1,
-                      QCheck.map
-                        (fun (arb_0, (arb_1, arb_2)) ->
-                          If (arb_0, arb_1, arb_2))
-                        (QCheck.pair
-                           (arb_expr_sized (n / 2))
-                           (QCheck.pair
-                              (arb_expr_sized (n / 2))
-                              (arb_expr_sized (n / 2)))) );
-                    ( 1,
-                      QCheck.map
-                        (fun (arb_0, arb_1) -> Eq (arb_0, arb_1))
-                        (QCheck.pair
-                           (arb_expr_sized (n / 2))
-                           (arb_expr_sized (n / 2))) );
-                    ( 1,
-                      QCheck.map
-                        (fun (arb_0, arb_1) -> Lt (arb_0, arb_1))
-                        (QCheck.pair
-                           (arb_expr_sized (n / 2))
-                           (arb_expr_sized (n / 2))) );
-                  ]
-
-          and arb_value () =
-            QCheck.frequency
-              [
-                (1, QCheck.map (fun arb_0 -> Bool arb_0) QCheck.bool);
-                (1, QCheck.map (fun arb_0 -> Int arb_0) QCheck.int);
-              ]
-
-          let arb_expr = arb_expr ()
-
-          let arb_value = arb_value ()
-        end];
+        and gen_value () =
+          QCheck.Gen.frequency
+            [
+              (1, QCheck.Gen.map (fun gen0 -> Bool gen0) QCheck.Gen.bool);
+              (1, QCheck.Gen.map (fun gen0 -> Int gen0) QCheck.Gen.int);
+            ]];
+      [%stri let gen_expr = gen_expr ()];
+      [%stri let gen_value = gen_value ()];
     ]
   in
+
   let actual =
     f
     @@ extract
@@ -802,8 +799,8 @@ let () =
             test_case "deriving alpha" `Quick test_alpha;
             test_case "deriving variant" `Quick test_variant;
             test_case "deriving weight constructors" `Quick test_weight_konstrs;
+            test_case "deriving recursive" `Quick test_recursive;
             (*
-               * test_case "deriving recursive" `Quick test_recursive;
                * test_case "deriving fun axioms" `Quick test_fun_axiom;
                * test_case "deriving fun n" `Quick test_fun_n;
                * test_case "deriving fun option" `Quick test_fun_option;

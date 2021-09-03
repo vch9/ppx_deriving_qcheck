@@ -95,11 +95,13 @@ let tree ~loc nodes leaves =
     @@ QCheck.Gen.fix (fun self -> function
          | 0 -> [%e leaves] | n -> [%e nodes])]
 
-let sized ~loc typ_name (is_rec : 'a -> bool)
+let sized ~loc ~env typ_name (is_rec : 'a -> bool)
     (to_gen : ?env:expression TypeGen.t -> 'a -> expression) (xs : 'a list) =
   let (module A) = Ast_builder.make loc in
-  let env = TypeGen.singleton typ_name [%expr self (n / 2)] in
-  let leaves = List.filter (fun x -> not (is_rec x)) xs |> List.map to_gen in
+  let env = TypeGen.add typ_name [%expr self (n / 2)] env in
+  let leaves =
+    List.filter (fun x -> not (is_rec x)) xs |> List.map (to_gen ~env)
+  in
   let nodes = List.filter is_rec xs in
 
   if List.length nodes > 0 then
@@ -110,6 +112,32 @@ let sized ~loc typ_name (is_rec : 'a -> bool)
   else
     let gens = A.elist leaves in
     frequency ~loc gens
+
+let mutually_recursive_gens ~loc gens =
+  let (module A) = Ast_builder.make loc in
+  let fake_gens =
+    List.map
+      (function
+        | [%stri let [%p? pat] = [%e? expr]] ->
+            let expr = [%expr fun () -> [%e expr]] in
+            A.value_binding ~pat ~expr
+        | _ -> assert false)
+      gens
+  in
+  let real_gens =
+    List.map
+      (function
+        | [%stri
+            let [%p? { ppat_desc = Ppat_var { txt = s; _ }; _ } as pat] =
+              [%e? _expr]] ->
+            let expr = A.evar s in
+            [%stri let [%p pat] = [%e expr] ()]
+        | _ -> assert false)
+      gens
+  in
+
+  let mutual_gens = A.pstr_value Recursive fake_gens in
+  mutual_gens :: real_gens
 
 module Tuple = struct
   type 'a t =
@@ -296,13 +324,14 @@ and gen_from_variant ~loc typ_name rws =
     in
     [%expr [%e w], [%e gen]]
   in
-  let gen = sized ~loc typ_name is_rec to_gen rws in
+  (* TypeGen.empty should not happens, the environment should be passed on *)
+  let gen = sized ~loc ~env:TypeGen.empty typ_name is_rec to_gen rws in
   let typ_t = A.ptyp_constr (A.Located.mk @@ Lident typ_name) [] in
   let typ_gen = A.Located.mk @@ Lident "QCheck.Gen.t" in
   let typ = A.ptyp_constr typ_gen [ typ_t ] in
   [%expr ([%e gen] : [%t typ])]
 
-let gen_from_kind_variant ~loc typ_name xs =
+let gen_from_kind_variant ~loc ~env typ_name xs =
   let (module A) = Ast_builder.make loc in
   let is_rec (constr : constructor_declaration) : bool =
     match constr.pcd_args with
@@ -315,14 +344,14 @@ let gen_from_kind_variant ~loc typ_name xs =
           xs
     | _ -> false
   in
-  sized ~loc typ_name is_rec (gen_from_constr ~loc) xs
+  sized ~loc ~env typ_name is_rec (gen_from_constr ~loc) xs
 
 let rec curry_args ~loc args body =
   match args with
   | [] -> body
   | x :: xs -> [%expr fun [%p x] -> [%e curry_args ~loc xs body]]
 
-let gen ~loc td =
+let gen_from_type_declaration ~loc ?(env = TypeGen.empty) td =
   let name = td.ptype_name.txt in
   let pat_gen = pat ~loc name in
 
@@ -335,7 +364,7 @@ let gen ~loc td =
 
   let gen =
     match td.ptype_kind with
-    | Ptype_variant xs -> gen_from_kind_variant ~loc name xs
+    | Ptype_variant xs -> gen_from_kind_variant ~loc ~env name xs
     | Ptype_record xs ->
         let gens = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
         record ~loc ~gens xs
@@ -349,10 +378,21 @@ let gen ~loc td =
 
 let derive_arbitrary ~loc xs : structure =
   match xs with
-  | (_, [ x ]) -> [gen ~loc x]
-  | (_, _xs) -> assert false
-  [@@ocamlformat "disable"]
-(* [ Arbitrary.from_type_declarations ~loc xs ] *)
+  | (_, [ x ]) -> [ gen_from_type_declaration ~loc x ]
+  | (_, xs) ->
+      let (module A) = Ast_builder.make loc in
+      let env =
+        List.fold_left
+          (fun env td ->
+            let x = td.ptype_name.txt in
+            let gen = name x |> A.evar in
+            let expr = [%expr [%e gen] ()] in
+            TypeGen.add x expr env)
+          TypeGen.empty
+          xs
+      in
+      let gens = List.map (gen_from_type_declaration ~loc ~env) xs in
+      mutually_recursive_gens ~loc gens
 
 let create_arbitrary ~ctxt (decls : rec_flag * type_declaration list) :
     structure =
