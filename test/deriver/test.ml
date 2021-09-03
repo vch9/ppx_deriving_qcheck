@@ -599,7 +599,7 @@ type tree = Node of (int * forest)
 
 and forest = Nil | Cons of (tree * forest)
 
-let test_fun_axiom () =
+let test_fun_primitives () =
   let expected =
     [
       [%stri
@@ -655,7 +655,7 @@ let test_fun_axiom () =
            [%stri type t = unit -> string];
          ]
   in
-  check_eq ~expected ~actual "deriving fun axioms"
+  check_eq ~expected ~actual "deriving fun primitives"
 
 let test_fun_n () =
   let expected =
@@ -818,7 +818,7 @@ let () =
             test_case "deriving recursive" `Quick test_recursive;
             test_case "deriving forest" `Quick test_forest;
             (*
-               * test_case "deriving fun axioms" `Quick test_fun_axiom;
+               * test_case "deriving fun primitives" `Quick test_fun_primitives;
                * test_case "deriving fun n" `Quick test_fun_n;
                * test_case "deriving fun option" `Quick test_fun_option;
                * test_case "deriving fun list" `Quick test_fun_list;
