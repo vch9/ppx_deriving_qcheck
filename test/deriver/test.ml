@@ -583,6 +583,22 @@ let test_recursive () =
   in
   check_eq ~expected ~actual "deriving recursive"
 
+let test_forest () =
+  let expected = [] in
+  let actual =
+    f
+    @@ extract
+         [%stri
+           type tree = Node of (int * forest)
+
+           and forest = Nil | Cons of (tree * forest)]
+  in
+  check_eq ~expected ~actual "deriving forest"
+
+type tree = Node of (int * forest)
+
+and forest = Nil | Cons of (tree * forest)
+
 let test_fun_axiom () =
   let expected =
     [
@@ -800,6 +816,7 @@ let () =
             test_case "deriving variant" `Quick test_variant;
             test_case "deriving weight constructors" `Quick test_weight_konstrs;
             test_case "deriving recursive" `Quick test_recursive;
+            test_case "deriving forest" `Quick test_forest;
             (*
                * test_case "deriving fun axioms" `Quick test_fun_axiom;
                * test_case "deriving fun n" `Quick test_fun_n;
