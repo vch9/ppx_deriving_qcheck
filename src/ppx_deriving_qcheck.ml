@@ -332,17 +332,17 @@ and gen_from_variant ~loc typ_name rws =
   let typ = A.ptyp_constr typ_gen [ typ_t ] in
   [%expr ([%e gen] : [%t typ])]
 
+let rec is_rec_typ typ_name = function
+  | { ptyp_desc = Ptyp_constr ({ txt = x; _ }, _); _ } ->
+      longident_to_str x = typ_name
+  | { ptyp_desc = Ptyp_tuple xs; _ } -> List.exists (is_rec_typ typ_name) xs
+  | _ -> false
+
 let gen_from_kind_variant ~loc ~env typ_name xs =
   let (module A) = Ast_builder.make loc in
   let is_rec (constr : constructor_declaration) : bool =
     match constr.pcd_args with
-    | Pcstr_tuple xs ->
-        List.exists
-          (function
-            | { ptyp_desc = Ptyp_constr ({ txt = x; _ }, _); _ } ->
-                longident_to_str x = typ_name
-            | _ -> false)
-          xs
+    | Pcstr_tuple xs -> List.exists (is_rec_typ typ_name) xs
     | _ -> false
   in
   sized ~loc ~env typ_name is_rec (gen_from_constr ~loc) xs

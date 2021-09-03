@@ -584,7 +584,39 @@ let test_recursive () =
   check_eq ~expected ~actual "deriving recursive"
 
 let test_forest () =
-  let expected = [] in
+  let expected =
+    [
+      [%stri
+        let rec gen_tree () =
+          QCheck.Gen.frequency
+            [
+              ( 1,
+                QCheck.Gen.map
+                  (fun gen0 -> Node gen0)
+                  (QCheck.Gen.map
+                     (fun (gen0, gen1) -> (gen0, gen1))
+                     (QCheck.Gen.pair QCheck.Gen.int (gen_forest ()))) );
+            ]
+
+        and gen_forest () =
+          QCheck.Gen.sized
+          @@ QCheck.Gen.fix (fun self -> function
+               | 0 -> QCheck.Gen.frequency [ (1, QCheck.Gen.pure Nil) ]
+               | n ->
+                   QCheck.Gen.frequency
+                     [
+                       (1, QCheck.Gen.pure Nil);
+                       ( 1,
+                         QCheck.Gen.map
+                           (fun gen0 -> Cons gen0)
+                           (QCheck.Gen.map
+                              (fun (gen0, gen1) -> (gen0, gen1))
+                              (QCheck.Gen.pair (gen_tree ()) (self (n / 2)))) );
+                     ])];
+      [%stri let gen_tree = gen_tree ()];
+      [%stri let gen_forest = gen_forest ()];
+    ]
+  in
   let actual =
     f
     @@ extract
@@ -594,10 +626,6 @@ let test_forest () =
            and forest = Nil | Cons of (tree * forest)]
   in
   check_eq ~expected ~actual "deriving forest"
-
-type tree = Node of (int * forest)
-
-and forest = Nil | Cons of (tree * forest)
 
 let test_fun_primitives () =
   let expected =
