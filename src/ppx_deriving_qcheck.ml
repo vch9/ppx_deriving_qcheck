@@ -217,7 +217,7 @@ let record ~loc ~gens ?(f = fun x -> x) xs =
 
 let rec gen_from_type ~loc ?(env = TypeGen.empty) ?(typ_name = "") typ =
   Option.value
-    (Attributes.arb typ)
+    (Attributes.gen typ)
     ~default:
       (match typ with
       | [%type: unit] -> [%expr QCheck.Gen.unit]
@@ -361,4 +361,4 @@ let create_arbitrary ~ctxt (decls : rec_flag * type_declaration list) :
 
 let arb_generator = Deriving.Generator.V2.make_noarg create_arbitrary
 
-let _ = Deriving.add "arb" ~str_type_decl:arb_generator
+let _ = Deriving.add "gen" ~str_type_decl:arb_generator

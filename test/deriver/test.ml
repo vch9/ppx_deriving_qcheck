@@ -294,7 +294,7 @@ let test_dependencies () =
              type t =
                | Int of SomeModule.t
                | Float of SomeModule.SomeOtherModule.t];
-           [%stri type t = (Something.t[@arb gen_something])];
+           [%stri type t = (Something.t[@gen gen_something])];
          ]
   in
 

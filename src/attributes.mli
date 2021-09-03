@@ -26,19 +26,19 @@
 (** This file handles every attributes to be found in a core_type definition *)
 open Ppxlib
 
-(** [arb loc ct] look for an attribute "arb" in [ct]
+(** [gen loc ct] look for an attribute "gen" in [ct]
 
     example:
     {[
     type t =
     | A of int
-    | B of (int [@arb QCheck.int32])
+    | B of (int [@gen QCheck.int32])
     ]}
 
-    It allows the user to specify which arbitrary he wants for a specific type.
-    Returns the arbitrary as an expression and returns None if no attribute
+    It allows the user to specify which generator he wants for a specific type.
+    Returns the generator as an expression and returns None if no attribute
     is present *)
-val arb : core_type -> expression option
+val gen : core_type -> expression option
 
 (** [weight loc ct] look for an attribute "weight" in [ct]
 
