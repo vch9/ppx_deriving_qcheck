@@ -758,9 +758,13 @@ let test_weight_konstrs () =
   let expected =
     [
       [%stri
-        let arb =
-          QCheck.frequency
-            [ (5, QCheck.always A); (6, QCheck.always B); (1, QCheck.always C) ]];
+        let gen =
+          QCheck.Gen.frequency
+            [
+              (5, QCheck.Gen.pure A);
+              (6, QCheck.Gen.pure B);
+              (1, QCheck.Gen.pure C);
+            ]];
     ]
   in
   let actual =
@@ -797,6 +801,7 @@ let () =
             test_case "deriving tree like" `Quick test_tree;
             test_case "deriving alpha" `Quick test_alpha;
             test_case "deriving variant" `Quick test_variant;
+            test_case "deriving weight constructors" `Quick test_weight_konstrs;
             (*
                * test_case "deriving recursive" `Quick test_recursive;
                * test_case "deriving fun axioms" `Quick test_fun_axiom;
@@ -805,6 +810,6 @@ let () =
                * test_case "deriving fun list" `Quick test_fun_list;
                * test_case "deriving fun array" `Quick test_fun_array;
                * test_case "deriving fun tuple" `Quick test_fun_tuple;
-               * test_case "deriving weight constructors" `Quick test_weight_konstrs; *)
+            *)
           ] );
       ])
