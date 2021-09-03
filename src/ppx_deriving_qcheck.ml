@@ -78,10 +78,11 @@ let pat ~loc s =
   let s = name s in
   A.pvar s
 
-let gen ~loc lg =
+let gen ~loc ?(env = TypeGen.empty) lg =
   let (module A) = Ast_builder.make loc in
   match lg with
-  | Lident s -> name s |> A.evar
+  | Lident s ->
+      Option.value ~default:(name s |> A.evar) @@ TypeGen.find_opt s env
   | Ldot (lg, s) -> A.(pexp_construct (Located.mk @@ Ldot (lg, name s)) None)
   | Lapply (_, _) -> raise (Invalid_argument "gen received an Lapply")
 
@@ -98,14 +99,14 @@ let tree ~loc nodes leaves =
 let sized ~loc ~env typ_name (is_rec : 'a -> bool)
     (to_gen : ?env:expression TypeGen.t -> 'a -> expression) (xs : 'a list) =
   let (module A) = Ast_builder.make loc in
-  let env = TypeGen.add typ_name [%expr self (n / 2)] env in
+  let new_env = TypeGen.add typ_name [%expr self (n / 2)] env in
   let leaves =
     List.filter (fun x -> not (is_rec x)) xs |> List.map (to_gen ~env)
   in
   let nodes = List.filter is_rec xs in
 
   if List.length nodes > 0 then
-    let nodes = List.map (to_gen ~env) nodes in
+    let nodes = List.map (to_gen ~env:new_env) nodes in
     let leaves = A.elist leaves |> frequency ~loc
     and nodes = A.elist (leaves @ nodes) |> frequency ~loc in
     tree ~loc nodes leaves
@@ -257,19 +258,19 @@ let rec gen_from_type ~loc ?(env = TypeGen.empty) ?(typ_name = "") typ =
       | [%type: int32] | [%type: Int32.t] -> [%expr QCheck.Gen.int32]
       | [%type: int64] | [%type: Int64.t] -> [%expr QCheck.Gen.int64]
       | [%type: [%t? typ] option] ->
-          [%expr QCheck.Gen.option [%e gen_from_type ~loc typ]]
+          [%expr QCheck.Gen.option [%e gen_from_type ~loc ~env typ]]
       | [%type: [%t? typ] list] ->
-          [%expr QCheck.Gen.list [%e gen_from_type ~loc typ]]
+          [%expr QCheck.Gen.list [%e gen_from_type ~loc ~env typ]]
       | [%type: [%t? typ] array] ->
-          [%expr QCheck.Gen.array [%e gen_from_type ~loc typ]]
+          [%expr QCheck.Gen.array [%e gen_from_type ~loc ~env typ]]
       | _ -> (
           match typ with
           | { ptyp_desc = Ptyp_tuple typs; _ } ->
-              let tys = List.map (gen_from_type ~loc) typs in
+              let tys = List.map (gen_from_type ~loc ~env) typs in
               tuple ~loc tys
           | { ptyp_desc = Ptyp_constr ({ txt = ty; _ }, _); _ } ->
               let x = TypeGen.find_opt (longident_to_str ty) env in
-              Option.value ~default:(gen ~loc ty) x
+              Option.value ~default:(gen ~loc ~env ty) x
           | { ptyp_desc = Ptyp_var s; _ } -> gen ~loc (Lident s)
           | { ptyp_desc = Ptyp_variant (rws, _, _); _ } ->
               gen_from_variant ~loc typ_name rws
@@ -291,7 +292,7 @@ and gen_from_constr ~loc ?(env = TypeGen.empty)
         let tys = List.map (gen_from_type ~loc ~env) xs in
         tuple ~loc ~f:mk_constr tys
     | Pcstr_record xs ->
-        let tys = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
+        let tys = List.map (fun x -> gen_from_type ~loc ~env x.pld_type) xs in
         record ~loc ~f:mk_constr ~gens:tys xs
   in
 
@@ -366,11 +367,11 @@ let gen_from_type_declaration ~loc ?(env = TypeGen.empty) td =
     match td.ptype_kind with
     | Ptype_variant xs -> gen_from_kind_variant ~loc ~env name xs
     | Ptype_record xs ->
-        let gens = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
+        let gens = List.map (fun x -> gen_from_type ~loc ~env x.pld_type) xs in
         record ~loc ~gens xs
     | _ ->
         let typ = Option.get td.ptype_manifest in
-        gen_from_type ~loc ~typ_name:name typ
+        gen_from_type ~loc ~env ~typ_name:name typ
   in
   let gen = curry_args ~loc args gen in
 
