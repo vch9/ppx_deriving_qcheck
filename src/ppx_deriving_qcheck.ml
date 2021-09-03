@@ -95,6 +95,22 @@ let tree ~loc nodes leaves =
     @@ QCheck.Gen.fix (fun self -> function
          | 0 -> [%e leaves] | n -> [%e nodes])]
 
+let sized ~loc typ_name (is_rec : 'a -> bool)
+    (to_gen : ?env:expression TypeGen.t -> 'a -> expression) (xs : 'a list) =
+  let (module A) = Ast_builder.make loc in
+  let env = TypeGen.singleton typ_name [%expr self (n / 2)] in
+  let leaves = List.filter (fun x -> not (is_rec x)) xs |> List.map to_gen in
+  let nodes = List.filter is_rec xs in
+
+  if List.length nodes > 0 then
+    let nodes = List.map (to_gen ~env) nodes in
+    let leaves = A.elist leaves |> frequency ~loc
+    and nodes = A.elist (leaves @ nodes) |> frequency ~loc in
+    tree ~loc nodes leaves
+  else
+    let gens = A.elist leaves in
+    frequency ~loc gens
+
 module Tuple = struct
   type 'a t =
     | Pair of 'a t * 'a t
@@ -255,7 +271,6 @@ and gen_from_constr ~loc ?(env = TypeGen.empty)
 
 and gen_from_variant ~loc typ_name rws =
   let (module A) = Ast_builder.make loc in
-
   let is_rec (row : row_field) : bool =
     match row.prf_desc with
     | Rinherit _ -> false
@@ -267,8 +282,7 @@ and gen_from_variant ~loc typ_name rws =
             | _ -> false)
           typs
   in
-
-  let gen ?env (row : row_field) : expression * expression =
+  let to_gen ?env (row : row_field) : expression =
     let w =
       Attributes.weight row.prf_attributes |> Option.value ~default:[%expr 1]
     in
@@ -280,31 +294,9 @@ and gen_from_variant ~loc typ_name rws =
           let f expr = A.pexp_variant label.txt (Some expr) in
           tuple ~loc ~f (List.map (gen_from_type ~loc ?env) typs)
     in
-    (w, gen)
+    [%expr [%e w], [%e gen]]
   in
-
-  let leaves =
-    List.filter (fun x -> not (is_rec x)) rws
-    |> List.map gen
-    |> List.map (fun (weight, gen) -> [%expr [%e weight], [%e gen]])
-  in
-  let nodes = List.filter is_rec rws in
-
-  let gen =
-    if List.length nodes > 0 then
-      (* TODO: factorize this code with {!gen_from_kind_variant} *)
-      let env = TypeGen.singleton typ_name [%expr self (n / 2)] in
-      let nodes =
-        List.map (gen ~env) nodes
-        |> List.map (fun (weight, gen) -> [%expr [%e weight], [%e gen]])
-      in
-      let leaves = A.elist leaves |> frequency ~loc
-      and nodes = A.elist (leaves @ nodes) |> frequency ~loc in
-      tree ~loc nodes leaves
-    else
-      let gens = A.elist leaves in
-      frequency ~loc gens
-  in
+  let gen = sized ~loc typ_name is_rec to_gen rws in
   let typ_t = A.ptyp_constr (A.Located.mk @@ Lident typ_name) [] in
   let typ_gen = A.Located.mk @@ Lident "QCheck.Gen.t" in
   let typ = A.ptyp_constr typ_gen [ typ_t ] in
@@ -323,21 +315,7 @@ let gen_from_kind_variant ~loc typ_name xs =
           xs
     | _ -> false
   in
-
-  let leaves =
-    List.filter (fun x -> not (is_rec x)) xs |> List.map (gen_from_constr ~loc)
-  in
-  let nodes = List.filter is_rec xs in
-
-  if List.length nodes > 0 then
-    let env = TypeGen.singleton typ_name [%expr self (n / 2)] in
-    let nodes = nodes |> List.map (gen_from_constr ~loc ~env) in
-    let leaves = A.elist leaves |> frequency ~loc
-    and nodes = A.elist (leaves @ nodes) |> frequency ~loc in
-    tree ~loc nodes leaves
-  else
-    let gens = A.elist leaves in
-    frequency ~loc gens
+  sized ~loc typ_name is_rec (gen_from_constr ~loc) xs
 
 let rec curry_args ~loc args body =
   match args with
