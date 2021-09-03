@@ -187,7 +187,7 @@ let record ~loc ~gens ?(f = fun x -> x) xs =
 
   map ~loc pat expr gen
 
-let rec gen_from_type ~loc ?(env = TypeGen.empty) typ =
+let rec gen_from_type ~loc ?(env = TypeGen.empty) ?(typ_name = "") typ =
   Option.value
     (Attributes.arb typ)
     ~default:
@@ -212,6 +212,8 @@ let rec gen_from_type ~loc ?(env = TypeGen.empty) typ =
               let x = TypeGen.find_opt (longident_to_str ty) env in
               Option.value ~default:(gen ~loc ty) x
           | { ptyp_desc = Ptyp_var s; _ } -> gen ~loc (Lident s)
+          | { ptyp_desc = Ptyp_variant (rws, _, _); _ } ->
+              gen_from_variant ~loc typ_name rws
           | _ -> failwith "gen_from_type"))
 
 and gen_from_constr ~loc ?(env = TypeGen.empty)
@@ -236,7 +238,66 @@ and gen_from_constr ~loc ?(env = TypeGen.empty)
 
   A.pexp_tuple [ Option.value ~default:[%expr 1] weight; gen ]
 
-and gen_from_variant ~loc typ_name xs =
+and gen_from_variant ~loc typ_name rws =
+  let (module A) = Ast_builder.make loc in
+
+  let is_rec (row : row_field) : bool =
+    match row.prf_desc with
+    | Rinherit _ -> false
+    | Rtag (_, _, typs) ->
+        List.exists
+          (function
+            | { ptyp_desc = Ptyp_constr ({ txt = x; _ }, _); _ } ->
+                longident_to_str x = typ_name
+            | _ -> false)
+          typs
+  in
+
+  let gen ?env (row : row_field) : expression * expression =
+    let w =
+      Attributes.weight row.prf_attributes |> Option.value ~default:[%expr 1]
+    in
+    let gen =
+      match row.prf_desc with
+      | Rinherit typ -> gen_from_type ~loc typ
+      | Rtag (label, _, []) -> [%expr pure [%e A.pexp_variant label.txt None]]
+      | Rtag (label, _, typs) ->
+          let f expr = A.pexp_variant label.txt (Some expr) in
+          tuple ~loc ~f (List.map (gen_from_type ~loc ?env) typs)
+    in
+    (w, gen)
+  in
+
+  let leaves =
+    List.filter (fun x -> not (is_rec x)) rws
+    |> List.map gen
+    |> List.map (fun (weight, gen) -> [%expr [%e weight], [%e gen]])
+  in
+  let nodes = List.filter is_rec rws in
+
+  let gen =
+    if List.length nodes > 0 then
+      (* TODO: factorize this code with {!gen_from_kind_variant} *)
+      let env = TypeGen.singleton typ_name [%expr self (n / 2)] in
+      let nodes =
+        List.map (gen ~env) nodes
+        |> List.map (fun (weight, gen) -> [%expr [%e weight], [%e gen]])
+      in
+      let leaves = A.elist leaves and nodes = A.elist (leaves @ nodes) in
+      [%expr
+        sized
+        @@ fix (fun self -> function
+             | 0 -> frequency [%e leaves] | n -> frequency [%e nodes])]
+    else
+      let gens = A.elist leaves in
+      [%expr frequency [%e gens]]
+  in
+  let typ_t = A.ptyp_constr (A.Located.mk @@ Lident typ_name) [] in
+  let typ_gen = A.Located.mk @@ Lident "t" in
+  let typ = A.ptyp_constr typ_gen [ typ_t ] in
+  [%expr ([%e gen] : [%t typ])]
+
+let gen_from_kind_variant ~loc typ_name xs =
   let (module A) = Ast_builder.make loc in
   let is_rec (constr : constructor_declaration) : bool =
     match constr.pcd_args with
@@ -285,13 +346,13 @@ let gen ~loc td =
 
   let gen =
     match td.ptype_kind with
-    | Ptype_variant xs -> gen_from_variant ~loc name xs
+    | Ptype_variant xs -> gen_from_kind_variant ~loc name xs
     | Ptype_record xs ->
         let gens = List.map (fun x -> gen_from_type ~loc x.pld_type) xs in
         record ~loc ~gens xs
     | _ ->
         let typ = Option.get td.ptype_manifest in
-        gen_from_type ~loc typ
+        gen_from_type ~loc ~typ_name:name typ
   in
   let gen = curry_args ~loc args gen in
 

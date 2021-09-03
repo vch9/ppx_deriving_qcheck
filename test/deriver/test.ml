@@ -517,43 +517,43 @@ let test_variant () =
   let expected =
     [
       [%stri
-        let arb =
-          (QCheck.frequency
+        let gen =
+          let open QCheck in
+          let open Gen in
+          (frequency
              [
-               (1, QCheck.always `A);
-               (1, QCheck.map (fun arb_0 -> `B arb_0) QCheck.int);
-               (1, QCheck.map (fun arb_0 -> `C arb_0) QCheck.string);
+               (1, pure `A);
+               (1, map (fun gen0 -> `B gen0) int);
+               (1, map (fun gen0 -> `C gen0) string);
              ]
-            : t QCheck.arbitrary)];
+            : t t)];
       [%stri
-        include struct
-          let rec arb () = arb_sized 5
-
-          and arb_sized = function
-            | 0 ->
-                (QCheck.frequency
-                   [
-                     (1, QCheck.always `A);
-                     (1, QCheck.map (fun arb_0 -> `B arb_0) QCheck.int);
-                     (1, QCheck.map (fun arb_0 -> `C arb_0) QCheck.string);
-                   ]
-                  : t QCheck.arbitrary)
-            | n ->
-                (QCheck.frequency
-                   [
-                     (1, QCheck.always `A);
-                     (1, QCheck.map (fun arb_0 -> `B arb_0) QCheck.int);
-                     (1, QCheck.map (fun arb_0 -> `C arb_0) QCheck.string);
-                     (1, QCheck.map (fun arb_0 -> `D arb_0) (arb_sized (n - 1)));
-                   ]
-                  : t QCheck.arbitrary)
-
-          let arb = arb ()
-        end];
+        let gen =
+          let open QCheck in
+          let open Gen in
+          (sized
+           @@ fix (fun self -> function
+                | 0 ->
+                    frequency
+                      [
+                        (1, pure `A);
+                        (1, map (fun gen0 -> `B gen0) int);
+                        (1, map (fun gen0 -> `C gen0) string);
+                      ]
+                | n ->
+                    frequency
+                      [
+                        (1, pure `A);
+                        (1, map (fun gen0 -> `B gen0) int);
+                        (1, map (fun gen0 -> `C gen0) string);
+                        (1, map (fun gen0 -> `D gen0) (self (n / 2)));
+                      ])
+            : t t)];
       [%stri
-        let arb_t' =
-          (QCheck.frequency [ (1, QCheck.always `B); (1, arb) ]
-            : t' QCheck.arbitrary)];
+        let gen_t' =
+          let open QCheck in
+          let open Gen in
+          (frequency [ (1, pure `B); (1, gen) ] : t' t)];
     ]
   in
   let actual =
@@ -903,8 +903,8 @@ let () =
             test_case "deriving equal" `Quick test_equal;
             test_case "deriving tree like" `Quick test_tree;
             test_case "deriving alpha" `Quick test_alpha;
+            test_case "deriving variant" `Quick test_variant;
             (*
-               * test_case "deriving variant" `Quick test_variant;
                * test_case "deriving recursive" `Quick test_recursive;
                * test_case "deriving fun axioms" `Quick test_fun_axiom;
                * test_case "deriving fun n" `Quick test_fun_n;
