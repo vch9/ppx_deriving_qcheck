@@ -325,7 +325,20 @@ and gen_from_variant ~loc typ_name rws =
     in
     [%expr [%e w], [%e gen]]
   in
-  (* TypeGen.empty should not happens, the environment should be passed on *)
+  (* the environment is emptied, a variant can not be based on other mutuals types
+     containing variants
+
+     For instance, the following type is accepted:
+     {[
+       type x = [`X]
+       type xy = [`Y | foo]
+     ]}
+     However, this next is not:
+     {[
+       type xy = [`X | y]
+       and y = [`Y]
+     ]}
+  *)
   let gen = sized ~loc ~env:TypeGen.empty typ_name is_rec to_gen rws in
   let typ_t = A.ptyp_constr (A.Located.mk @@ Lident typ_name) [] in
   let typ_gen = A.Located.mk @@ Lident "QCheck.Gen.t" in
