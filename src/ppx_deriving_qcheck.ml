@@ -445,7 +445,7 @@ let gen_from_type_declaration ~loc ?(env = TypeGen.empty) td =
 
   [%stri let [%p pat_gen] = [%e gen]]
 
-let derive_arbitrary ~loc xs : structure =
+let derive_gen ~loc xs : structure =
   match xs with
   | (_, [ x ]) -> [ gen_from_type_declaration ~loc x ]
   | (_, xs) ->
@@ -463,11 +463,10 @@ let derive_arbitrary ~loc xs : structure =
       let gens = List.map (gen_from_type_declaration ~loc ~env) xs in
       mutually_recursive_gens ~loc gens
 
-let create_arbitrary ~ctxt (decls : rec_flag * type_declaration list) :
-    structure =
+let create_gen ~ctxt (decls : rec_flag * type_declaration list) : structure =
   let loc = Expansion_context.Deriver.derived_item_loc ctxt in
-  derive_arbitrary ~loc decls
+  derive_gen ~loc decls
 
-let arb_generator = Deriving.Generator.V2.make_noarg create_arbitrary
+let arb_generator = Deriving.Generator.V2.make_noarg create_gen
 
-let _ = Deriving.add "gen" ~str_type_decl:arb_generator
+let _ = Deriving.add "qcheck" ~str_type_decl:arb_generator

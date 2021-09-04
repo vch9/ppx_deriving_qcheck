@@ -24,6 +24,5 @@
 (*****************************************************************************)
 open Ppxlib
 
-(** [derive_arbitrary loc xs] derives an arbitrary for each type_declaration in [xs] *)
-val derive_arbitrary :
-  loc:location -> rec_flag * type_declaration list -> structure
+(** [derive_gen loc xs] derives a generator for each type_declaration in [xs] *)
+val derive_gen : loc:location -> rec_flag * type_declaration list -> structure

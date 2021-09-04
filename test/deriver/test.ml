@@ -29,7 +29,7 @@ open Ppxlib
 (** Primitive types tests *)
 let loc = Location.none
 
-let f = Ppx_deriving_qcheck.derive_arbitrary ~loc
+let f = Ppx_deriving_qcheck.derive_gen ~loc
 
 let f' xs = List.map f xs |> List.concat
 
