@@ -712,11 +712,11 @@ let test_fun_option () =
     [
       [%stri
         let gen =
-          QCheck.(
-            QCheck.fun_nary
-              QCheck.Tuple.(
-                QCheck.Observable.option QCheck.Observable.int @-> o_nil)
-              QCheck.unit)];
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.option QCheck.Observable.int @-> o_nil)
+            (QCheck.make QCheck.Gen.unit)
+          |> QCheck.gen];
     ]
   in
   let actual = f @@ extract [%stri type t = int option -> unit] in
@@ -727,11 +727,11 @@ let test_fun_list () =
     [
       [%stri
         let gen =
-          QCheck.(
-            QCheck.fun_nary
-              QCheck.Tuple.(
-                QCheck.Observable.list QCheck.Observable.int @-> o_nil)
-              QCheck.unit)];
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.list QCheck.Observable.int @-> o_nil)
+            (QCheck.make QCheck.Gen.unit)
+          |> QCheck.gen];
     ]
   in
   let actual = f @@ extract [%stri type t = int list -> unit] in
@@ -742,11 +742,11 @@ let test_fun_array () =
     [
       [%stri
         let gen =
-          QCheck.(
-            QCheck.fun_nary
-              QCheck.Tuple.(
-                QCheck.Observable.array QCheck.Observable.int @-> o_nil)
-              QCheck.unit)];
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.array QCheck.Observable.int @-> o_nil)
+            (QCheck.make QCheck.Gen.unit)
+          |> QCheck.gen];
     ]
   in
   let actual = f @@ extract [%stri type t = int array -> unit] in
@@ -852,11 +852,11 @@ let () =
             test_case "deriving recursive" `Quick test_recursive;
             test_case "deriving forest" `Quick test_forest;
             test_case "deriving fun primitives" `Quick test_fun_primitives;
+            test_case "deriving fun option" `Quick test_fun_option;
+            test_case "deriving fun array" `Quick test_fun_array;
+            test_case "deriving fun list" `Quick test_fun_list;
             (*
                * test_case "deriving fun n" `Quick test_fun_n;
-               * test_case "deriving fun option" `Quick test_fun_option;
-               * test_case "deriving fun list" `Quick test_fun_list;
-               * test_case "deriving fun array" `Quick test_fun_array;
                * test_case "deriving fun tuple" `Quick test_fun_tuple;
             *)
           ] );
