@@ -1,7 +1,7 @@
 (library
  (name ppx_deriving_qcheck)
  (public_name ppx_deriving_qcheck)
- (libraries ppxlib arbitrary)
+ (libraries ppxlib)
  (preprocess (pps ppxlib.metaquot))
  (ppx_runtime_libraries qcheck)
  (kind ppx_deriver))
