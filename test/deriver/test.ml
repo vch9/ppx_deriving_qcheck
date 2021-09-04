@@ -693,13 +693,13 @@ let test_fun_n () =
     [
       [%stri
         let gen =
-          QCheck.(
-            QCheck.fun_nary
-              QCheck.Tuple.(
-                QCheck.Observable.bool @-> QCheck.Observable.int
-                @-> QCheck.Observable.float @-> QCheck.Observable.string
-                @-> QCheck.Observable.char @-> o_nil)
-              QCheck.unit)];
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.bool @-> QCheck.Observable.int
+              @-> QCheck.Observable.float @-> QCheck.Observable.string
+              @-> QCheck.Observable.char @-> o_nil)
+            (QCheck.make QCheck.Gen.unit)
+          |> QCheck.gen];
     ]
   in
   let actual =
@@ -855,8 +855,8 @@ let () =
             test_case "deriving fun option" `Quick test_fun_option;
             test_case "deriving fun array" `Quick test_fun_array;
             test_case "deriving fun list" `Quick test_fun_list;
+            test_case "deriving fun n" `Quick test_fun_n;
             (*
-               * test_case "deriving fun n" `Quick test_fun_n;
                * test_case "deriving fun tuple" `Quick test_fun_tuple;
             *)
           ] );
