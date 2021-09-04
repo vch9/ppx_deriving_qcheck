@@ -757,37 +757,35 @@ let test_fun_tuple () =
     [
       [%stri
         let gen =
-          QCheck.(
-            QCheck.fun_nary
-              QCheck.Tuple.(
-                QCheck.Observable.pair
-                  QCheck.Observable.int
-                  QCheck.Observable.int
-                @-> o_nil)
-              QCheck.unit)];
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.pair QCheck.Observable.int QCheck.Observable.int
+              @-> o_nil)
+            (QCheck.make QCheck.Gen.unit)
+          |> QCheck.gen];
       [%stri
         let gen =
-          QCheck.(
-            QCheck.fun_nary
-              QCheck.Tuple.(
-                QCheck.Observable.triple
-                  QCheck.Observable.int
-                  QCheck.Observable.int
-                  QCheck.Observable.int
-                @-> o_nil)
-              QCheck.unit)];
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.triple
+                QCheck.Observable.int
+                QCheck.Observable.int
+                QCheck.Observable.int
+              @-> o_nil)
+            (QCheck.make QCheck.Gen.unit)
+          |> QCheck.gen];
       [%stri
         let gen =
-          QCheck.(
-            QCheck.fun_nary
-              QCheck.Tuple.(
-                QCheck.Observable.quad
-                  QCheck.Observable.int
-                  QCheck.Observable.int
-                  QCheck.Observable.int
-                  QCheck.Observable.int
-                @-> o_nil)
-              QCheck.unit)];
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.quad
+                QCheck.Observable.int
+                QCheck.Observable.int
+                QCheck.Observable.int
+                QCheck.Observable.int
+              @-> o_nil)
+            (QCheck.make QCheck.Gen.unit)
+          |> QCheck.gen];
     ]
   in
   let actual =
@@ -856,8 +854,6 @@ let () =
             test_case "deriving fun array" `Quick test_fun_array;
             test_case "deriving fun list" `Quick test_fun_list;
             test_case "deriving fun n" `Quick test_fun_n;
-            (*
-               * test_case "deriving fun tuple" `Quick test_fun_tuple;
-            *)
+            test_case "deriving fun tuple" `Quick test_fun_tuple;
           ] );
       ])

@@ -174,12 +174,27 @@ module Tuple = struct
       l
     |> A.pexp_tuple
 
-  let rec to_gen ~loc = function
-    | Quad (a, b, c, d) -> [%expr QCheck.Gen.quad [%e a] [%e b] [%e c] [%e d]]
-    | Triple (a, b, c) -> [%expr QCheck.Gen.triple [%e a] [%e b] [%e c]]
+  let rec nest ~loc ~pair ~triple ~quad = function
+    | Quad (a, b, c, d) -> [%expr [%e quad] [%e a] [%e b] [%e c] [%e d]]
+    | Triple (a, b, c) -> [%expr [%e triple] [%e a] [%e b] [%e c]]
     | Pair (a, b) ->
-        [%expr QCheck.Gen.pair [%e to_gen ~loc a] [%e to_gen ~loc b]]
+        [%expr
+          [%e pair]
+            [%e nest ~loc ~pair ~triple ~quad a]
+            [%e nest ~loc ~pair ~triple ~quad b]]
     | Elem a -> a
+
+  let to_gen ~loc t =
+    let pair = [%expr QCheck.Gen.pair] in
+    let triple = [%expr QCheck.Gen.triple] in
+    let quad = [%expr QCheck.Gen.quad] in
+    nest ~loc ~pair ~triple ~quad t
+
+  let to_obs ~loc t =
+    let pair = [%expr QCheck.Observable.pair] in
+    let triple = [%expr QCheck.Observable.triple] in
+    let quad = [%expr QCheck.Observable.quad] in
+    nest ~loc ~pair ~triple ~quad t
 
   let to_pat ~loc t =
     let fresh_id =
@@ -361,6 +376,9 @@ and gen_from_arrow ~loc ~env left right =
         [%expr QCheck.Observable.array [%e observable typ]]
     | [%type: [%t? typ] list] ->
         [%expr QCheck.Observable.list [%e observable typ]]
+    | { ptyp_desc = Ptyp_tuple xs; _ } ->
+        let obs = List.map observable xs in
+        Tuple.from_list obs |> Tuple.to_obs ~loc
     | _ -> failwith "todo"
   in
   let rec aux = function
