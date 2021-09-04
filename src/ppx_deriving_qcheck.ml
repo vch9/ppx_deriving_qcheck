@@ -467,6 +467,6 @@ let create_gen ~ctxt (decls : rec_flag * type_declaration list) : structure =
   let loc = Expansion_context.Deriver.derived_item_loc ctxt in
   derive_gen ~loc decls
 
-let arb_generator = Deriving.Generator.V2.make_noarg create_gen
+let gen_expander = Deriving.Generator.V2.make_noarg create_gen
 
-let _ = Deriving.add "qcheck" ~str_type_decl:arb_generator
+let _ = Deriving.add "qcheck" ~str_type_decl:gen_expander

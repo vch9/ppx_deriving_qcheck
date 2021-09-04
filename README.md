@@ -3,57 +3,63 @@
 ## Documentation
 The documentation can be found [here](https://vch9.github.io/ppx_deriving_qcheck/).
 
-## Arbitrary
-Derive `QCheck.arbitrary` on a type declaration
+## Generator
+Derive `QCheck.Gen.t` from a type declaration
 
 ```ocaml
 type tree = Leaf of int | Node of tree * tree
-[@@deriving arb]
+[@@deriving qcheck]
 ```
 
-### Overwrite arbitrary
-If you wan't to specify your own `arbitrary` for any type you can
+### Overwrite generator
+If you wan't to specify your own `generator` for any type you can
 add an attribute to the type:
 
 ```ocaml
-type t = (int : [@arb QCheck.(0 -- 10)])
-[@@deriving arb]
+type t = (int : [@gen QCheck.Gen.(0 -- 10)])
+[@@deriving qcheck]
 
-(* produces *)
+(* produces ==> *)
 
-let arb : t QCheck.arbitrary = QCheck.(0 -- 10)
+let gen : t QCheck.Gen.t = QCheck.Gen.(0 -- 10)
 ```
 
 This attribute has 2 advantages:
-* Use your own arbitrary for a specific type (see above)
-* Arbitrary is not available for a type
+* Use your own generator for a specific type (see above)
+* There is no generator available for the type
   ```ocaml
   type my_foo =
   | Foo of my_other_type
   | Bar of bool
-  [@@deriving arb]
+  [@@deriving qcheck]
   ^^^^^^^^^^^^^^^^
-  Error: Unbound value arb_my_other_type
+  Error: Unbound value gen_my_other_type
   
   (* Possible fix *)
-  let arb_my_other_type = (* add your implementation here *)
+  let gen_my_other_type = (* add your implementation here *)
   
   type my_foo =
-  | Foo of my_other_type [@arb arb_my_other_type]
+  | Foo of my_other_type [@gen gen_my_other_type]
   | Bar of bool
-  [@@deriving arb]
+  [@@deriving qcheck]
   ```
 
 ## How to use
-Install ppx_deriving_qcheck (dev version)
+Install ppx_deriving_qcheck:
+```
+$ opam install ppx_deriving_qcheck
+```
+
+Dev version:
 ```
 $ opam pin add ppx_deriving_qcheck.dev git+https://github.com/vch9/ppx_deriving_qcheck.git#dev
 ```
 
+
+
 Add to your OCaml libraries with dune
 ```ocaml
 ...
-(libraries ppx_deriving_qcheck)
 (preprocess (pps ppx_deriving_qcheck)))
 ...
 ```

@@ -45,61 +45,61 @@ let check_eq ~expected ~actual name =
 let test_int () =
   let expected = [ [%stri let gen = QCheck.Gen.int] ] in
 
-  let actual = f @@ extract [%stri type t = int [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = int] in
 
   check_eq ~expected ~actual "deriving int"
 
 let test_float () =
   let expected = [ [%stri let gen = QCheck.Gen.float] ] in
-  let actual = f @@ extract [%stri type t = float [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = float] in
 
   check_eq ~expected ~actual "deriving float"
 
 let test_char () =
   let expected = [ [%stri let gen = QCheck.Gen.char] ] in
-  let actual = f @@ extract [%stri type t = char [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = char] in
 
   check_eq ~expected ~actual "deriving char"
 
 let test_string () =
   let expected = [ [%stri let gen = QCheck.Gen.string] ] in
-  let actual = f @@ extract [%stri type t = string [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = string] in
 
   check_eq ~expected ~actual "deriving string"
 
 let test_unit () =
   let expected = [ [%stri let gen = QCheck.Gen.unit] ] in
-  let actual = f @@ extract [%stri type t = unit [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = unit] in
 
   check_eq ~expected ~actual "deriving unit"
 
 let test_bool () =
   let expected = [ [%stri let gen = QCheck.Gen.bool] ] in
-  let actual = f @@ extract [%stri type t = bool [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = bool] in
 
   check_eq ~expected ~actual "deriving bool"
 
 let test_int32 () =
   let expected = [ [%stri let gen = QCheck.Gen.int32] ] in
-  let actual = f @@ extract [%stri type t = int32 [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = int32] in
 
   check_eq ~expected ~actual "deriving int32"
 
 let test_int32' () =
   let expected = [ [%stri let gen = QCheck.Gen.int32] ] in
-  let actual = f @@ extract [%stri type t = Int32.t [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = Int32.t] in
 
   check_eq ~expected ~actual "deriving int32'"
 
 let test_int64 () =
   let expected = [ [%stri let gen = QCheck.Gen.int64] ] in
-  let actual = f @@ extract [%stri type t = int64 [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = int64] in
 
   check_eq ~expected ~actual "deriving int64"
 
 let test_int64' () =
   let expected = [ [%stri let gen = QCheck.Gen.int64] ] in
-  let actual = f @@ extract [%stri type t = Int64.t [@@deriving arb]] in
+  let actual = f @@ extract [%stri type t = Int64.t] in
 
   check_eq ~expected ~actual "deriving int64'"
 
@@ -113,7 +113,7 @@ let test_int64' () =
  *             QCheck.(0 -- Sys.max_string_length)];
  *     ]
  *   in
- *   let actual = f @@ extract [%stri type t = Bytes.t [@@deriving arb]] in
+ *   let actual = f @@ extract [%stri type t = Bytes.t ] in
  * 
  *   check_eq ~expected ~actual "deriving int64" *)
 
@@ -393,7 +393,7 @@ let test_record () =
          [
            [%stri type t = { a : int; b : string }];
            [%stri type t = { mutable a : int; mutable b : string }];
-           [%stri type t = A of t' | B of { left : int; right : int } [@@arb]];
+           [%stri type t = A of t' | B of { left : int; right : int }];
          ]
   in
   check_eq ~expected ~actual "deriving record"
@@ -822,7 +822,7 @@ let () =
     run
       "ppx_deriving_qcheck tests"
       [
-        ( "deriving arbitrary good",
+        ( "deriving generator good",
           [
             test_case "deriving int" `Quick test_int;
             test_case "deriving float" `Quick test_float;
