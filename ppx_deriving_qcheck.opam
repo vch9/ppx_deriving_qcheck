@@ -1,8 +1,8 @@
 opam-version: "2.0"
 name: "ppx_deriving_qcheck"
-version: "0.1.0"
+version: "0.2.0"
 license: "MIT"
-synopsis: "PPX Deriver for qcheck"
+synopsis: "PPX Deriver for QCheck"
 
 homepage: "https://github.com/vch9/ppx_deriving_qcheck"
 bug-reports: "https://github.com/vch9/ppx_deriving_qcheck/-/issues"
