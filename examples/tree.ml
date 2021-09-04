@@ -1,29 +1,4 @@
-type tree = Leaf | Node of int * tree * tree [@@deriving arb]
-
-(* deriving arb produces:
-   {[
-include
-  struct
-    let rec arb_tree () = arb_tree' 5
-    and arb_tree' =
-      function
-      | 0 -> QCheck.frequency [(1, (QCheck.always Leaf))]
-      | n ->
-        QCheck.frequency
-          [(1, (QCheck.always Leaf));
-           (1,
-            (QCheck.map
-               (fun (arb_0, (arb_1, arb_2)) ->
-                        Node (arb_0, arb_1, arb_2))
-               (QCheck.pair QCheck.int
-                  (QCheck.pair (arb_tree' (n - 1)) (arb_tree' (n - 1))))))]
-    let _ = arb_tree
-    and _ = arb_tree'
-    let arb_tree = arb_tree ()
-    let _ = arb_tree
-  end
-   ]}
-*)
+type tree = Leaf | Node of int * tree * tree [@@deriving qcheck]
 
 let rec depth = function
   | Leaf -> 0
@@ -56,13 +31,13 @@ let rec mem tree x =
 let test_insert_nodes =
   QCheck.Test.make
     ~name:"(nodes x) + 1 = nodes (insert tree n)"
-    QCheck.(pair arb_tree small_int)
+    QCheck.(pair (make gen_tree) small_int)
     (fun (tree, n) -> nodes tree + 1 = nodes (insert tree n))
 
 let test_insert_mem =
   QCheck.Test.make
     ~name:"mem (insert tree n) n = true"
-    QCheck.(pair arb_tree small_int)
+    QCheck.(pair (make gen_tree) small_int)
     (fun (tree, n) -> mem (insert tree n) n)
 
 let _ =

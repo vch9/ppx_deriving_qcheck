@@ -1,12 +1,12 @@
-let arb_uint = QCheck.(map abs small_int)
+let gen_uint = QCheck.Gen.(map abs small_int)
 
-type balance = (int[@arb arb_uint]) [@@deriving arb]
+type balance = (int[@gen gen_uint]) [@@deriving qcheck]
 
-type name = string [@@deriving arb]
+type name = string [@@deriving qcheck]
 
-type account = Account of name * balance [@@deriving arb]
+type account = Account of name * balance [@@deriving qcheck]
 
-type context = account list [@@deriving arb]
+type context = account list [@@deriving qcheck]
 
 (** [get_amount acc] returns account amount, must be `Account *)
 let get_amount (Account (_, x)) = x
@@ -55,7 +55,7 @@ let test_transfer_sink =
   let open QCheck in
   Test.make
     ~name:"[transfer ctxt (None => account) x] gives [x] to account"
-    QCheck.(pair arb_context arb_uint)
+    QCheck.(pair (make gen_context) (make gen_uint))
     (fun (ctxt, n) ->
       assume (List.length ctxt > 0) ;
 
@@ -75,7 +75,7 @@ let test_transfer_burn =
   let open QCheck in
   Test.make
     ~name:"[transfer ctxt (account => None) x] burns [x] from account"
-    QCheck.(pair arb_context arb_uint)
+    QCheck.(pair (make gen_context) (make gen_uint))
     (fun (ctxt, n) ->
       assume (List.length ctxt > 0) ;
 
@@ -97,7 +97,7 @@ let test_transfer_accounts =
     ~name:
       "[transfer ctxt (account => account') x] takes [x] from account to \
        account'"
-    QCheck.(pair arb_context arb_uint)
+    QCheck.(pair (make gen_context) (make gen_uint))
     (fun (ctxt, n) ->
       assume (List.length ctxt > 2) ;
       match ctxt with
