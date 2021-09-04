@@ -291,7 +291,10 @@ let rec gen_from_type ~loc ?(env = TypeGen.empty) ?(typ_name = "") typ =
               gen_from_variant ~loc typ_name rws
           | { ptyp_desc = Ptyp_arrow (_, left, right); _ } ->
               gen_from_arrow ~loc ~env left right
-          | _ -> failwith "gen_from_type"))
+          | _ ->
+              Ppxlib.Location.raise_errorf
+                ~loc
+                "This type is not supported in ppx_deriving_qcheck"))
 
 and gen_from_constr ~loc ?(env = TypeGen.empty)
     { pcd_name; pcd_args; pcd_attributes; _ } =
@@ -379,7 +382,10 @@ and gen_from_arrow ~loc ~env left right =
     | { ptyp_desc = Ptyp_tuple xs; _ } ->
         let obs = List.map observable xs in
         Tuple.from_list obs |> Tuple.to_obs ~loc
-    | _ -> failwith "todo"
+    | { ptyp_loc = loc; _ } ->
+        Ppxlib.Location.raise_errorf
+          ~loc
+          "This type is not supported in ppx_deriving_qcheck"
   in
   let rec aux = function
     | { ptyp_desc = Ptyp_arrow (_, x, xs); _ } ->
