@@ -107,7 +107,7 @@ let test_int64' () =
  *   let expected =
  *     [
  *       [%stri
- *         let arb =
+ *         let gen =
  *           QCheck.map
  *             (fun n -> Bytes.create n)
  *             QCheck.(0 -- Sys.max_string_length)];
@@ -631,43 +631,46 @@ let test_fun_primitives () =
   let expected =
     [
       [%stri
-        let arb =
-          QCheck.(
-            fun_nary
-              Tuple.(QCheck.Observable.int @-> QCheck.Observable.int @-> o_nil)
-              QCheck.string)];
+        let gen =
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.int @-> QCheck.Observable.int @-> o_nil)
+            (QCheck.make QCheck.Gen.string)
+          |> QCheck.gen];
       [%stri
-        let arb =
-          QCheck.(
-            fun_nary
-              Tuple.(
-                QCheck.Observable.float @-> QCheck.Observable.float @-> o_nil)
-              QCheck.string)];
+        let gen =
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.float @-> QCheck.Observable.float @-> o_nil)
+            (QCheck.make QCheck.Gen.string)
+          |> QCheck.gen];
       [%stri
-        let arb =
-          QCheck.(
-            fun_nary
-              Tuple.(
-                QCheck.Observable.string @-> QCheck.Observable.string @-> o_nil)
-              QCheck.string)];
+        let gen =
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.string @-> QCheck.Observable.string @-> o_nil)
+            (QCheck.make QCheck.Gen.string)
+          |> QCheck.gen];
       [%stri
-        let arb =
-          QCheck.(
-            fun_nary
-              Tuple.(
-                QCheck.Observable.bool @-> QCheck.Observable.bool @-> o_nil)
-              QCheck.string)];
+        let gen =
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.bool @-> QCheck.Observable.bool @-> o_nil)
+            (QCheck.make QCheck.Gen.string)
+          |> QCheck.gen];
       [%stri
-        let arb =
-          QCheck.(
-            fun_nary
-              Tuple.(
-                QCheck.Observable.char @-> QCheck.Observable.char @-> o_nil)
-              QCheck.string)];
+        let gen =
+          QCheck.fun_nary
+            QCheck.Tuple.(
+              QCheck.Observable.char @-> QCheck.Observable.char @-> o_nil)
+            (QCheck.make QCheck.Gen.string)
+          |> QCheck.gen];
       [%stri
-        let arb =
-          QCheck.(
-            fun_nary Tuple.(QCheck.Observable.unit @-> o_nil) QCheck.string)];
+        let gen =
+          QCheck.fun_nary
+            QCheck.Tuple.(QCheck.Observable.unit @-> o_nil)
+            (QCheck.make QCheck.Gen.string)
+          |> QCheck.gen];
     ]
   in
 
@@ -689,10 +692,10 @@ let test_fun_n () =
   let expected =
     [
       [%stri
-        let arb =
+        let gen =
           QCheck.(
-            fun_nary
-              Tuple.(
+            QCheck.fun_nary
+              QCheck.Tuple.(
                 QCheck.Observable.bool @-> QCheck.Observable.int
                 @-> QCheck.Observable.float @-> QCheck.Observable.string
                 @-> QCheck.Observable.char @-> o_nil)
@@ -708,10 +711,11 @@ let test_fun_option () =
   let expected =
     [
       [%stri
-        let arb =
+        let gen =
           QCheck.(
-            fun_nary
-              Tuple.(QCheck.Observable.option QCheck.Observable.int @-> o_nil)
+            QCheck.fun_nary
+              QCheck.Tuple.(
+                QCheck.Observable.option QCheck.Observable.int @-> o_nil)
               QCheck.unit)];
     ]
   in
@@ -722,10 +726,11 @@ let test_fun_list () =
   let expected =
     [
       [%stri
-        let arb =
+        let gen =
           QCheck.(
-            fun_nary
-              Tuple.(QCheck.Observable.list QCheck.Observable.int @-> o_nil)
+            QCheck.fun_nary
+              QCheck.Tuple.(
+                QCheck.Observable.list QCheck.Observable.int @-> o_nil)
               QCheck.unit)];
     ]
   in
@@ -736,10 +741,11 @@ let test_fun_array () =
   let expected =
     [
       [%stri
-        let arb =
+        let gen =
           QCheck.(
-            fun_nary
-              Tuple.(QCheck.Observable.array QCheck.Observable.int @-> o_nil)
+            QCheck.fun_nary
+              QCheck.Tuple.(
+                QCheck.Observable.array QCheck.Observable.int @-> o_nil)
               QCheck.unit)];
     ]
   in
@@ -750,20 +756,20 @@ let test_fun_tuple () =
   let expected =
     [
       [%stri
-        let arb =
+        let gen =
           QCheck.(
-            fun_nary
-              Tuple.(
+            QCheck.fun_nary
+              QCheck.Tuple.(
                 QCheck.Observable.pair
                   QCheck.Observable.int
                   QCheck.Observable.int
                 @-> o_nil)
               QCheck.unit)];
       [%stri
-        let arb =
+        let gen =
           QCheck.(
-            fun_nary
-              Tuple.(
+            QCheck.fun_nary
+              QCheck.Tuple.(
                 QCheck.Observable.triple
                   QCheck.Observable.int
                   QCheck.Observable.int
@@ -771,10 +777,10 @@ let test_fun_tuple () =
                 @-> o_nil)
               QCheck.unit)];
       [%stri
-        let arb =
+        let gen =
           QCheck.(
-            fun_nary
-              Tuple.(
+            QCheck.fun_nary
+              QCheck.Tuple.(
                 QCheck.Observable.quad
                   QCheck.Observable.int
                   QCheck.Observable.int
@@ -845,8 +851,8 @@ let () =
             test_case "deriving weight constructors" `Quick test_weight_konstrs;
             test_case "deriving recursive" `Quick test_recursive;
             test_case "deriving forest" `Quick test_forest;
+            test_case "deriving fun primitives" `Quick test_fun_primitives;
             (*
-               * test_case "deriving fun primitives" `Quick test_fun_primitives;
                * test_case "deriving fun n" `Quick test_fun_n;
                * test_case "deriving fun option" `Quick test_fun_option;
                * test_case "deriving fun list" `Quick test_fun_list;

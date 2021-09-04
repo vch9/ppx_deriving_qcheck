@@ -274,6 +274,8 @@ let rec gen_from_type ~loc ?(env = TypeGen.empty) ?(typ_name = "") typ =
           | { ptyp_desc = Ptyp_var s; _ } -> gen ~loc (Lident s)
           | { ptyp_desc = Ptyp_variant (rws, _, _); _ } ->
               gen_from_variant ~loc typ_name rws
+          | { ptyp_desc = Ptyp_arrow (_, left, right); _ } ->
+              gen_from_arrow ~loc ~env left right
           | _ -> failwith "gen_from_type"))
 
 and gen_from_constr ~loc ?(env = TypeGen.empty)
@@ -344,6 +346,35 @@ and gen_from_variant ~loc typ_name rws =
   let typ_gen = A.Located.mk @@ Lident "QCheck.Gen.t" in
   let typ = A.ptyp_constr typ_gen [ typ_t ] in
   [%expr ([%e gen] : [%t typ])]
+
+and gen_from_arrow ~loc ~env left right =
+  let rec observable = function
+    | [%type: unit] -> [%expr QCheck.Observable.unit]
+    | [%type: bool] -> [%expr QCheck.Observable.bool]
+    | [%type: int] -> [%expr QCheck.Observable.int]
+    | [%type: float] -> [%expr QCheck.Observable.float]
+    | [%type: string] -> [%expr QCheck.Observable.string]
+    | [%type: char] -> [%expr QCheck.Observable.char]
+    | [%type: [%t? typ] option] ->
+        [%expr QCheck.Observable.option [%e observable typ]]
+    | [%type: [%t? typ] array] ->
+        [%expr QCheck.Observable.array [%e observable typ]]
+    | [%type: [%t? typ] list] ->
+        [%expr QCheck.Observable.list [%e observable typ]]
+    | _ -> failwith "todo"
+  in
+  let rec aux = function
+    | { ptyp_desc = Ptyp_arrow (_, x, xs); _ } ->
+        let (res, xs) = aux xs in
+        let obs = observable x in
+        (res, [%expr [%e obs] @-> [%e xs]])
+    | x -> (gen_from_type ~loc ~env x, [%expr o_nil])
+  in
+  let (x, obs) = aux right in
+  let arb = [%expr QCheck.make [%e x]] in
+  [%expr
+    QCheck.fun_nary QCheck.Tuple.([%e observable left] @-> [%e obs]) [%e arb]
+    |> QCheck.gen]
 
 let rec is_rec_typ typ_name = function
   | { ptyp_desc = Ptyp_constr ({ txt = x; _ }, _); _ } ->
